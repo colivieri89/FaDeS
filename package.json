@@ -1,0 +1,25 @@
+{
+  "name": "facade-debris-simulator",
+  "productName": "Facade Debris Simulator",
+  "version": "1.0.0",
+  "description": "Desktop app that reproduces the analyses of the paper 'Simulating the debris of overturning masonry façades with rigid blocks: from the falling panel to the documented collapses'.",
+  "main": "src/main/main.js",
+  "license": "MIT",
+  "author": "Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
+  "homepage": "https://github.com/",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "cli": "node src/cli/cli.js",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "planck": "1.5.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  }
+}
