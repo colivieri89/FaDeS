@@ -22,6 +22,7 @@ app.whenReady().then(async () => {
     await wait(9000); await shot('1_overview');
     await js("document.querySelector('[data-view=single]').click()");
     await wait(500);
+    await js("(() => { const w = document.getElementById('f-W'); w.value = '12'; w.dispatchEvent(new Event('input')); })()");
     await js("document.getElementById('simBtn').click()");
     await until("document.querySelector('#singleOut .tiles') !== null");
     await wait(12000); await shot('2_single_wall');
@@ -44,6 +45,20 @@ app.whenReady().then(async () => {
     await wait(800); await shot('5_total_run');
     await scroll(1500); await wait(400); await shot('5b_total_run_table'); await scroll(0);
     console.log('tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
+    // a parametric study: walls of 4 and 6 m, t 0.45 m, seeds 1-3, street 5 m wide
+    await js("document.querySelector('[data-view=study]').click()");
+    await wait(800);
+    await js(`(() => { const set = (i, v) => { i.value = v; i.dispatchEvent(new Event('input')); };
+      const field = (lab) => [...document.querySelectorAll('label.field')].find(l => l.textContent.startsWith(lab)).querySelector('input');
+      set(field('Heights H'), '4, 6'); set(field('Thicknesses t'), '0.45');
+      set(document.querySelector('.filters input[placeholder=none]'), '5');
+      set([...document.querySelectorAll('.filters input.txt')].find(i => i.value === '1-20'), '1-3'); })()`);
+    await wait(600); await shot('7_study_inputs');
+    await js("[...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Run the study')).click()");
+    await until("[...document.querySelectorAll('.card b')].some(b => b.textContent === 'Done')", 300000);
+    await wait(800); await scroll(560); await wait(400); await shot('7b_study_results');
+    await scroll(1400); await wait(400); await shot('7c_study_table'); await scroll(0);
+    console.log('study tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
     await js("document.querySelector('[data-view=about]').click()");
     await wait(600); await shot('6_about');
   } catch (e) { console.error('ERROR', e.message); }

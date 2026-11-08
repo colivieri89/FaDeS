@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('api', {
   openPath: (p) => ipcRenderer.invoke('shell:openPath', p),
   openExternal: (u) => ipcRenderer.invoke('shell:openExternal', u),
   clearResults: (study) => ipcRenderer.invoke('results:clear', study),
+  wallsFromCSV: (text) => ipcRenderer.invoke('walls:fromCSV', text),
+  wallsTemplate: () => ipcRenderer.invoke('walls:template'),
   onStudyProgress: on('study:progress'), onStudyPartial: on('study:partial'), onStudyDone: on('study:done'), onStudyError: on('study:error'),
   onSingleNotify: on('single:notify'), onSingleDone: on('single:done'), onSingleError: on('single:error'),
 });

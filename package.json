@@ -1,18 +1,18 @@
 {
-  "name": "facade-debris-simulator",
-  "productName": "Facade Debris Simulator",
+  "name": "fades",
+  "productName": "FaDeS",
   "version": "1.0.0",
-  "description": "Desktop app that reproduces the analyses of the paper 'Simulating the debris of overturning masonry façades with rigid blocks: from the falling panel to the documented collapses'.",
+  "description": "FaDeS (Façade Debris Simulator): rigid-block simulation of the out-of-plane overturning of masonry façades and of the debris on the street, for any wall; it also reproduces the analyses of the paper that describes the model.",
   "main": "src/main/main.js",
   "license": "MIT",
   "author": "Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
-  "homepage": "https://github.com/colivieri89/facade-debris-simulator",
+  "homepage": "https://github.com/colivieri89/FaDeS",
   "repository": {
     "type": "git",
-    "url": "https://github.com/colivieri89/facade-debris-simulator.git"
+    "url": "https://github.com/colivieri89/FaDeS.git"
   },
   "bugs": {
-    "url": "https://github.com/colivieri89/facade-debris-simulator/issues"
+    "url": "https://github.com/colivieri89/FaDeS/issues"
   },
   "scripts": {
     "start": "electron .",
@@ -31,8 +31,8 @@
     "electron-builder": "26.18.0"
   },
   "build": {
-    "appId": "io.github.colivieri89.facade-debris-simulator",
-    "productName": "Facade Debris Simulator",
+    "appId": "io.github.colivieri89.fades",
+    "productName": "FaDeS",
     "copyright": "Copyright © 2026 Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
     "asar": false,
     "directories": {
@@ -45,7 +45,7 @@
       "src/**/*",
       "reference/campaign_runs.json",
       "reference/breakup_p95.json",
-      "reference/documented_cases_template.csv"
+      "reference/walls_template.csv"
     ],
     "mac": {
       "target": [
@@ -63,7 +63,7 @@
       "hardenedRuntime": false
     },
     "dmg": {
-      "title": "Facade Debris Simulator ${version}"
+      "title": "FaDeS ${version}"
     },
     "win": {
       "target": [
@@ -80,7 +80,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Facade-Debris-Simulator-Setup-${version}.${ext}"
+      "artifactName": "FaDeS-Setup-${version}.${ext}"
     },
     "linux": {
       "target": [

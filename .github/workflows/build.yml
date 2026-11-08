@@ -48,7 +48,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no certificate: ad-hoc signature on macOS (package.json), none on Windows
       - uses: actions/upload-artifact@v4
         with:
-          name: Facade-Debris-Simulator-${{ matrix.name }}
+          name: FaDeS-${{ matrix.name }}
           path: ${{ matrix.files }}
           if-no-files-found: error
 

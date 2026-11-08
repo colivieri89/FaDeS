@@ -31,7 +31,7 @@ function readCases(text) {
   if (miss.length) throw new Error(`missing columns: ${miss.join(', ')}`);
   return rows.filter(r => r.id !== '').map(r => {
     const c = { id: String(r.id), mechanism: r.mechanism, H_m: +r.H_m, t_m: +r.t_m, Hr_m: r.Hr_m ? +r.Hr_m : null };
-    if (!(c.H_m > 0 && c.t_m > 0) || !['T', 'P1', 'P2'].includes(c.mechanism)) throw new Error(`wall ${c.id}: H_m and t_m must be positive, mechanism T, P1 or P2`);
+    if (!(c.H_m > 0 && c.t_m > 0) || !['T', 'P', 'P1', 'P2'].includes(c.mechanism)) throw new Error(`wall ${c.id}: H_m and t_m must be positive, mechanism T, P, P1 or P2`);
     return c;
   });
 }

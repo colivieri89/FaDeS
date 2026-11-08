@@ -29,9 +29,12 @@
     this.fit(); this.loop = false; this.time = 0; this.play();
   };
   Stage.prototype.clear = function () { this.data = null; this.pause(); this.draw(); };
+  // width of the street (m, null for none): the façade across the street is drawn at that distance
+  Stage.prototype.setStreet = function (w) { this.street = w > 0 ? w : null; if (this.data) { this.fit(); this.draw(); } };
   Stage.prototype.fit = function () {
     const d = this.data, G = d.geom;
-    const reach = d.final ? Math.max(d.final.record.Lmax, G.Hr) : 1.15 * G.H + G.h0 * 0;
+    let reach = d.final ? Math.max(d.final.record.Lmax, G.Hr) : 1.15 * G.H;
+    if (this.street) reach = Math.max(reach, this.street + 0.08 * G.H);
     this.view = { x0: -G.t - 0.9 - 0.05 * G.H, x1: reach * 1.06 + 0.6, y0: -0.12 * G.H - 0.4, y1: G.H * 1.06 + 0.4 };
   };
   Stage.prototype.play = function () {
@@ -89,6 +92,11 @@
     // building behind the facade and the floor
     g.fillStyle = c('--building');
     g.fillRect(X(v.x0), Y(G.H + 0.2), X(-G.t) - X(v.x0), Y(0) - Y(G.H + 0.2));
+    // the building across the street
+    if (this.street) {
+      g.fillStyle = c('--building'); g.fillRect(X(this.street), Y(0.8 * G.H), W - X(this.street), Y(0) - Y(0.8 * G.H));
+      if (!this.compact) { g.fillStyle = c('--ink-2'); g.font = '600 11px ' + c('--font'); g.textAlign = 'left'; g.fillText(`W = ${FD.fmt(this.street)} m`, X(this.street) + 6, Y(0.8 * G.H) + 16); }
+    }
     // ground and street
     g.fillStyle = c('--surface-2'); g.fillRect(0, Y(0), W, H - Y(0));
     g.strokeStyle = c('--ground'); g.lineWidth = 2; g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();

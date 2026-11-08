@@ -34,7 +34,7 @@ function configurations(ids = ['C1', 'C2']) {
   return out;
 }
 
-// documented collapses loaded by the user (CSV, see reference/documented_cases_template.csv)
+// documented collapses loaded by the user (CSV, see reference/walls_template.csv)
 function caseConfigurations(cases, mech = 'T') {
   return cases.filter(c => c.mechanism === mech).map(c => ({ id: `case${c.id}`, campaign: 'case', case: c.id, mech: c.mechanism,
     H: c.H_m, t: c.t_m, Hr: c.mechanism === 'T' ? null : c.Hr_m, bx: 0.15, by: 0.15 }));

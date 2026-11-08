@@ -1,7 +1,8 @@
 # The model
 
-This file describes what the program computes. The paper gives the reasons for each choice, the verification, and the
-results. Section numbers below are those of the paper.
+This file describes what FaDeS computes for a wall. The paper gives the reasons for each choice, the verification, and
+the results. Section numbers below are those of the paper. Every parameter below can be set for any wall, in the
+interface and on the command line; the defaults are the values of the paper's campaigns.
 
 ## Frame and geometry
 
@@ -78,20 +79,33 @@ Measures are taken on the final positions of the blocks. The distance of a block
 The same definitions are applied to the blocks at the instant of break-up. This is how the increment of Sect. 5 is
 computed: P95 at rest minus P95 at break-up, seed by seed.
 
+## The street
+
+A street width W, measured from the street face of the façade, adds three measures to a run:
+
+- the width left free, W − P95, or 0 when P95 reaches W;
+- whether P95 and Lmax reach W;
+- the height of the debris heap at the distance W, read from the profile.
+
+A study reports the median and the smallest free width over the seeds, and the number of seeds whose P95 or Lmax
+reaches W. The model has no building across the street: the far side is a measure, not an obstacle, so the debris that
+reaches it is not stopped there.
+
 ## Run-to-run variability (Sect. 2)
 
-Each seed draws three things from a normal distribution, with a fixed random generator:
+Each seed draws three things from a normal distribution, with a fixed random generator (the standard deviations
+below are those of the paper; they can be changed, or set to zero for a single deterministic run):
 
 - the start angle δ (sd 0.2°);
 - the position of every joint between blocks (sd 10 % of the nominal block size). The blocks always fill the
   section, and none is smaller than 20 % of the nominal size;
 - μ and μg (sd 5 %).
 
-The paper uses seeds 1–20. A seed gives the same draws on every computer.
+The paper uses seeds 1–20; any other seed can be used. A seed gives the same draws on every computer.
 
 ## Statistics (Sect. 5)
 
-Values per configuration are medians over the seeds that reached rest. For an even count the median is the mean of
+Values per wall are medians over the seeds that reached rest. For an even count the median is the mean of
 the two middle values, as in Python's `statistics.median`. The increment is the median of the per-seed differences, not
 the difference of the medians.
 

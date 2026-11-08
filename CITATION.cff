@@ -1,10 +1,10 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "Facade Debris Simulator: rigid-block simulation of the debris of overturning masonry façades"
+title: "FaDeS – Façade Debris Simulator: rigid-block simulation of the overturning of masonry façades and of their debris"
 version: 1.0.0
 license: MIT
-repository-code: "https://github.com/colivieri89/facade-debris-simulator"
+repository-code: "https://github.com/colivieri89/FaDeS"
 authors:
   - family-names: Olivieri
     given-names: Carlo
@@ -27,20 +27,25 @@ authors:
     orcid: "https://orcid.org/0000-0001-8712-1048"
     affiliation: "Pegaso University, Naples, Italy"
 abstract: >-
-  Desktop application for Windows and macOS that reproduces the analyses of the
-  paper "Simulating the debris of overturning masonry façades with rigid blocks:
-  from the falling panel to the documented collapses". A two-dimensional section
-  of the façade overturns about its outer toe, breaks into its blocks at the
-  first impact and the blocks settle on the street in the planck.js engine; the
-  extent of the debris is measured as P95 by mass and Lmax. The program runs
-  single walls with their animation and the total-collapse campaigns of the
-  paper, and compares every run with the stored runs of the paper.
+  FaDeS (Façade Debris Simulator) simulates the out-of-plane overturning of a
+  masonry façade and the debris it leaves on the street. A two-dimensional
+  section of the façade overturns about its outer toe, breaks into its blocks at
+  the first impact, and the blocks settle on the street in the planck.js engine;
+  the extent of the debris is measured as P95 by mass and Lmax, and, for a given
+  street width, as the width left free. Any wall can be simulated, in total or
+  partial collapse, with its own height, thickness, block size, diatone courses
+  and materials, one at a time with its animation or many at a time from a grid
+  or a CSV file. It is the simulator of the paper "Simulating the debris of
+  overturning masonry façades with rigid blocks: from the falling panel to the
+  documented collapses" and reproduces its analyses, comparing every run of the
+  paper's campaigns with the paper's stored runs. Desktop application for
+  Windows and macOS, and command line.
 keywords:
   - masonry
   - façade
   - out-of-plane overturning
   - debris
   - rigid blocks
-  - discrete element simulation
+  - rigid-body contact dynamics
   - earthquake
   - street blockage

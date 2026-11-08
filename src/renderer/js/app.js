@@ -4,8 +4,11 @@
   const { h } = FD;
   const NAV = [
     { group: null, items: [{ view: 'home', sec: null, icon: 'home', label: 'Overview' }] },
+    { group: 'Analyses', items: [
+      { view: 'single', icon: 'wall', label: 'Single wall' },
+      { view: 'study', icon: 'chart', label: 'Parametric study' },
+    ] },
     { group: 'Paper', items: [
-      { view: 'single', sec: '2', label: 'Single wall' },
       { view: 'total', sec: '5', label: 'Total collapse' },
     ] },
     { group: null, items: [{ view: 'about', sec: null, icon: 'info', label: 'About' }] },

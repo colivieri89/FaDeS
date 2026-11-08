@@ -1,38 +1,88 @@
-# Facade Debris Simulator
+# FaDeS – Façade Debris Simulator
 
-Desktop program that accompanies the paper *Simulating the debris of overturning masonry façades with rigid
-blocks: from the falling panel to the documented collapses* (C. Olivieri, G. Vaiano, L. Sibille, G. Mochi,
-F. Fabbrocino). It runs the paper's two-dimensional rigid-block model on your computer and reproduces its analyses:
+FaDeS simulates the out-of-plane overturning of a masonry façade and the debris it leaves on the street. It is a
+two-dimensional rigid-block model:
 
-1. A masonry façade overturns about its outer toe.
-2. It breaks into its blocks at the first impact with the street.
-3. The blocks slide and tumble until they stop.
+1. the façade overturns about its outer toe (or about the top of the wall below it, in a partial collapse);
+2. it breaks into its blocks at the first impact;
+3. the blocks slide and tumble until they stop.
 
-The extent of the debris is measured on the blocks at rest.
+The extent of the debris is measured on the blocks at rest. It works for any wall given by its height, thickness,
+block size, diatone courses and materials, in total or partial collapse. It reports how far the debris reaches and,
+for a street of given width, how much of the street stays free.
+
+FaDeS is the simulator of the paper *Simulating the debris of overturning masonry façades with rigid blocks: from the
+falling panel to the documented collapses* (C. Olivieri, G. Vaiano, L. Sibille, G. Mochi, F. Fabbrocino), and it
+reproduces the paper's analyses.
 
 ![Single wall](docs/screenshots/2_single_wall.png)
 
 ## What it does
 
-- **Single wall** (Sect. 2 of the paper). Choose a wall from the campaigns, or set your own height, thickness,
-  block size and materials, then watch it fall. The program measures P95 by mass and Lmax, plots the cumulative mass
-  and the profile of the debris, and, for a wall of the campaigns, compares the run with the paper's.
-- **Total collapse** (Sect. 5, Fig. 7). Runs the 48 configurations of campaigns C1 and C2, or any subset, with 20
-  seeds each. It reports P95/H at break-up and at rest, and the increment added by the debris phase. Until you run
-  anything, the paper's own values are shown, computed from its stored runs. Your own documented walls can be added
-  from a CSV file.
+- **Single wall.** Any façade, of your own size, blocks and materials, or one from the paper's campaigns. You can
+  watch it fall. The program measures P95 by mass and Lmax and plots the cumulative mass and the profile of the debris.
+  With a street width it also gives the width left free.
+- **Parametric study.** Many walls, each with many seeds. The walls can be:
+  - a grid of heights and thicknesses with shared blocks and materials;
+  - a CSV file with one wall per row (your own buildings);
+  - the configurations of the paper's campaigns.
 
-The other analyses of the paper (rigid phase, integrity during the fall, partial collapse, documented collapses,
-verification) are in preparation.
+  For each wall it gives the extent at break-up and at rest, as seed medians and ranges. With a street width it adds
+  the width left free, the number of seeds whose debris reaches the far side, and the height of the debris there.
+- **The paper, Section 5 (Fig. 7).** The 48 total-collapse configurations of campaigns C1 and C2, 20 seeds each. Until
+  you run anything, the values shown are computed from the paper's stored runs.
 
-Results are exported as CSV or JSON. Charts are exported as SVG or PNG.
+A wall that coincides with a configuration of the paper's campaigns, with the paper's seeds, is run with exactly the
+campaign's parameters and compared with the paper's stored run. The other analyses of the paper (rigid phase,
+integrity during the fall, partial collapse, documented collapses, verification) are in preparation.
+
+Results are exported as CSV or JSON, and charts as SVG or PNG.
+
+![Parametric study](docs/screenshots/7b_study_results.png)
+
+## Input
+
+Every parameter can be changed. The defaults are the values of the paper's campaigns.
+
+| parameter | meaning | default |
+|---|---|---|
+| H | height of the façade, m | |
+| mechanism, Hr | total collapse, or partial collapse of the top Hr metres | total |
+| t | thickness of the wall, m | |
+| bx × by | block size across the thickness × along the height, m | 0.15 × 0.15 |
+| diatone spacing | through-stone courses 0.20 m high every … m; 0 = none | 2 |
+| μ, μg | Coulomb friction between blocks, and against the street | 0.75, 0.75 |
+| e | coefficient of restitution of every contact | 0.02 |
+| ρ | density, kg/m³ | 1900 |
+| variability | sd of the start angle, of the block joints and of the friction | 0.2°, 10 %, 5 % |
+| seeds | each seed draws the start angle, the block joints and the friction | 1–20 |
+| W | width of the street, m (optional) | |
+
+## Scope of the model
+
+The model is a vertical strip of façade, one metre long, without return walls or floors. The building behind it is a
+rigid backstop. The wall starts from rest just past its tipping angle, and there is no ground motion during the fall.
+It stays rigid until its first impact and breaks completely into its blocks at that instant.
+
+The paper describes the model and how it was tested:
+
+- The overturning phase is verified to rounding error.
+- A masonry panel with little or no tensile strength would crack before landing.
+- In total collapse the extent is largely set at break-up: 95 % of the mass lies within about one height when the panel
+  lands.
+- The convergence and engine tests pass in seven tall, slender walls, which verifies the break-up geometry. The debris
+  phase itself, and partial collapse, do not pass the convergence test.
+
+The extent computed for a wall is therefore a property of the rigid-block idealisation, to be read with these results.
+It is neither a prediction for a real wall nor an established bound on it. [docs/MODEL.md](docs/MODEL.md) describes the
+model in more detail.
 
 ## Installing
 
-Installers are attached to the [releases](https://github.com/colivieri89/facade-debris-simulator/releases) of this repository:
+Installers are attached to the [releases](https://github.com/colivieri89/FaDeS/releases) of this repository:
 
-- **macOS**: `Facade Debris Simulator-<version>-arm64.dmg` for Apple Silicon, `...-x64.dmg` for Intel.
-- **Windows**: `Facade-Debris-Simulator-Setup-<version>.exe`.
+- **macOS**: `FaDeS-<version>-arm64.dmg` for Apple Silicon, `FaDeS-<version>.dmg` for Intel.
+- **Windows**: `FaDeS-Setup-<version>.exe`.
 
 The installers are not signed with a developer certificate, so the system asks for confirmation the first time:
 
@@ -46,19 +96,47 @@ You need [Node.js](https://nodejs.org) 24.
 ```sh
 npm ci          # install the dependencies (planck.js, Electron, electron-builder)
 npm start       # open the program
-npm test        # tests: deterministic functions, reproduction of stored runs of the paper
+npm test        # tests
 ```
 
-The same studies run from the command line, without the interface:
+Everything also runs from the command line, without the interface:
 
 ```sh
-node src/cli/cli.js paper                                          # the paper's Sect. 5 values, from its stored runs
-node src/cli/cli.js run --H 10 --t 0.60 --seed 1                   # one wall
+# one wall: a partial collapse of the top 4 m of a 12 m façade, larger blocks, a street 5 m wide
+node src/cli/cli.js run --H 12 --t 0.45 --mechanism partial --Hr 4 --bx 0.25 --by 0.12 --W 5 --seed 1
+
+# many walls: every combination of three heights and two thicknesses, 20 seeds, a street 6 m wide
+node src/cli/cli.js study --H 6,9,12 --t 0.45,0.60 --seeds 1-20 --W 6
+
+# your own walls, one per row of a CSV file
+node src/cli/cli.js study --walls my_walls.csv --seeds 1-20
+
+# the paper
+node src/cli/cli.js paper                                              # Sect. 5 values from the stored runs
 node src/cli/cli.js total --campaigns C1 --heights 5,10 --seeds 1-20   # part of the Sect. 5 study
+
 node src/cli/cli.js --help
 ```
 
-A stopped study resumes where it stopped: every finished run is stored as soon as it ends.
+Every finished run is stored as soon as it ends, so a stopped study resumes where it stopped.
+
+## Walls from a CSV file
+
+One wall per row, comma or semicolon separated. A template with two example walls is in
+`reference/walls_template.csv`.
+
+| column | meaning |
+|---|---|
+| `id` | name of the wall |
+| `mechanism` | `T` total collapse; `P` partial collapse of the top `Hr_m` metres; `P1`, `P2`: partial with Hr = H/3, 2H/3 |
+| `H_m`, `t_m` | height and thickness, m |
+| `Hr_m` | height of the overturning part (partial collapse), m |
+| `bx_m`, `by_m` | block size, m (optional) |
+| `diatone_step_m` | spacing of the diatone courses, m; 0 = none (optional) |
+| `mu`, `muG`, `e`, `rho` | friction, restitution, density (optional) |
+| `W_m` | street width, m (optional) |
+
+Empty optional cells take the values of the paper's campaigns.
 
 ## Building the installers
 
@@ -68,8 +146,8 @@ npm run dist:win    # dist/*.exe (on Windows)
 ```
 
 The tests run on Linux, Windows and macOS at every push (`.github/workflows/tests.yml`). The installers are built by
-`.github/workflows/build.yml`, started by hand from the Actions tab or by a tag such as `v1.0.0`, which also publishes
-them as a release.
+`.github/workflows/build.yml`. It is started by hand from the Actions tab, or by a tag such as `v1.0.0`, which also
+publishes the installers as a release.
 
 ## Agreement with the paper
 
@@ -86,37 +164,25 @@ same result. Against the paper:
 
 On Apple Silicon with Node.js 24, the command line with `--native-math` reproduces the stored runs bit for bit.
 
-[docs/MODEL.md](docs/MODEL.md) describes the model, its parameters and these checks in more detail.
-
 ## Data
 
-The program ships no field data. Documented collapses can be loaded from a CSV file with one wall per row:
-
-| column | meaning |
-|---|---|
-| `id` | identifier |
-| `mechanism` | `T` (total), `P1` or `P2` (partial) |
-| `H_m` | height of the façade, m |
-| `t_m` | thickness of the wall, m |
-| `Hr_m` | height of the overturning part (partial collapse), m |
-
-An empty template is in `reference/documented_cases_template.csv`.
+The program ships no field data. Documented collapses can be loaded from a CSV file in the format above.
 
 ## Code layout
 
 | folder | content |
 |---|---|
 | `src/sim` | the simulator: rigid phase, break-up, debris phase in planck.js, measures, deterministic functions |
-| `src/analyses` | the campaigns of the paper and the summaries of each section |
+| `src/analyses` | studies of any set of walls, the campaigns of the paper and the summaries of its sections |
 | `src/runner` | parallel and resumable execution on worker threads |
 | `src/main`, `src/renderer` | the desktop interface (Electron) |
 | `src/cli` | the command line |
-| `reference` | the stored runs of the paper |
+| `reference` | the stored runs of the paper, the template of the CSV file of walls |
 | `test` | tests |
 
 ## Citation
 
-If you use this program, please cite the paper (the full reference will be added on publication). The software itself is
+If you use FaDeS, please cite the paper (the full reference will be added on publication). The software itself is
 cited from `CITATION.cff` (on GitHub: *Cite this repository*).
 
 ## Licence

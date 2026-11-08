@@ -17,6 +17,7 @@
       h('input', { id, type: 'number', value, step, min, max }));
   }
   const val = (id) => +document.getElementById(id).value;
+  const streetW = () => { const v = document.getElementById('f-W'); return v && v.value !== '' && +v.value > 0 ? +v.value : null; };
 
   function params(info) {
     const mech = document.querySelector('#mechSeg .on').dataset.v;
@@ -25,8 +26,16 @@
       mu: val('f-mu'), muG: val('f-muG'), e: val('f-e'), rho: val('f-rho'), engine: 'planck' });
     P.diatones = val('f-dia') > 0 ? { on: true, step: val('f-dia'), h: 0.20 } : { on: false, step: 2, h: 0.20 };
     if (mech === 'partial') P.Hr = val('f-Hr');
-    const varOn = document.querySelector('#varSeg .on').dataset.v === 'paper';
-    P.variability = varOn ? Object.assign({ seed: val('f-seed') }, info.variability) : { seed: 1, sdThetaDeg: 0, sdBlockRel: 0, sdMuRel: 0 };
+    const vm = document.querySelector('#varSeg .on').dataset.v;
+    if (vm === 'none') P.variability = { seed: 1, sdThetaDeg: 0, sdBlockRel: 0, sdMuRel: 0 };
+    else if (vm === 'custom') P.variability = { seed: val('f-seed'), sdThetaDeg: val('f-sdTheta'), sdBlockRel: val('f-sdBlock') / 100, sdMuRel: val('f-sdMu') / 100 };
+    else P.variability = Object.assign({ seed: val('f-seed') }, info.variability);
+    const bad = [];
+    if (!(H > 0)) bad.push('the height H must be positive');
+    if (!(t > 0)) bad.push('the thickness t must be positive');
+    if (mech === 'partial' && !(P.Hr > 0 && P.Hr < H)) bad.push('the collapsing height Hr must be between 0 and H');
+    if (!(P.bx > 0 && P.by > 0)) bad.push('the block size must be positive');
+    if (bad.length) throw new Error(bad.join('; '));
     return P;
   }
   function applyPreset(p) {
@@ -60,11 +69,20 @@
           numberField('f-muG', 'Friction μg, block–street', '', info.paperParams.muG, 0.01, 0.05, 1.5),
           numberField('f-e', 'Restitution e', '', info.paperParams.e, 0.01, 0, 0.9),
           numberField('f-rho', 'Density ρ', 'kg/m³', info.paperParams.rho, 50, 500, 3000)),
+        h('fieldset', {}, h('legend', {}, 'Street'),
+          h('label', { class: 'field' }, h('span', {}, 'Street width W ', h('span', { class: 'unit' }, 'm, optional')),
+            h('input', { id: 'f-W', type: 'number', value: '', step: 0.5, min: 0, max: 100, placeholder: 'none',
+              oninput: () => { state.stage && state.stage.setStreet(streetW()); if (state.last) showResult(state.last); } }))),
         h('fieldset', {}, h('legend', {}, 'Run'),
-          h('div', { style: 'margin:4px 0 8px' }, seg('varSeg', [['paper', 'Paper variability'], ['none', 'Nominal']], 'paper', (v) => {
-            document.getElementById('f-seed').disabled = v !== 'paper';
+          h('div', { style: 'margin:4px 0 8px' }, seg('varSeg', [['paper', 'Paper'], ['custom', 'Custom'], ['none', 'Nominal']], 'paper', (v) => {
+            document.getElementById('f-seed').disabled = v === 'none';
+            document.getElementById('sdFields').style.display = v === 'custom' ? '' : 'none';
           })),
-          numberField('f-seed', 'Seed', '1–20 in the paper', 1, 1, 1, 100000)),
+          h('div', { id: 'sdFields', style: 'display:none' },
+            numberField('f-sdTheta', 'Start angle, sd', '°', info.variability.sdThetaDeg, 0.05, 0, 5),
+            numberField('f-sdBlock', 'Block joints, sd', '% of the block', info.variability.sdBlockRel * 100, 1, 0, 30),
+            numberField('f-sdMu', 'Friction, sd', '%', info.variability.sdMuRel * 100, 1, 0, 30)),
+          numberField('f-seed', 'Seed', 'any integer; 1–20 in the paper', 1, 1, 1, 100000)),
         h('div', { class: 'row' },
           h('button', { class: 'btn', id: 'simBtn', onclick: () => run(info) }, FD.icon('play'), 'Simulate'),
           h('span', { class: 'muted small', id: 'simNote' }, 'about 1–20 s')));
@@ -80,11 +98,12 @@
       const player = h('div', { class: 'player' }, playBtn, scrub, speeds);
       const out = h('div', { id: 'singleOut' });
       root.append(
-        h('div', { class: 'kicker' }, 'Paper · Section 2 · Figs. 3 and 4'),
+        h('div', { class: 'kicker' }, 'Analysis · one wall · Sect. 2 of the paper'),
         h('h1', {}, 'Simulate one façade'),
-        h('p', { class: 'lede' }, 'Rigid overturning about the outer toe, break-up into the masonry blocks at the first impact (each block takes the velocity of the panel at its centroid), and the debris settling in planck.js. The extent is measured at rest: P95 by mass and the farthest block, Lmax.'),
+        h('p', { class: 'lede' }, 'Any wall: set its height, thickness, blocks and materials, or start from a wall of the paper’s campaigns. The façade overturns rigidly about its outer toe, breaks into its blocks at the first impact (each block takes the velocity of the panel at its centroid), and the debris settles in planck.js. The extent is measured at rest: P95 by mass and the farthest block, Lmax. With a street width, the program shows how much of the street stays free.'),
         h('div', { class: 'layout-single' }, form, h('div', {}, h('div', { class: 'card', style: 'padding:0;overflow:hidden' }, stageWrap, player), out)));
       state.stage = new FD.Stage(stageWrap);
+      state.stage.street = streetW();
       state.stage.onTime((st) => {
         hudPhase.textContent = st.phase === 'idle' ? 'Ready' : st.label;
         hudClock.textContent = st.phase === 'idle' ? 't = 0.00 s' : `t = ${fmt(st.clock)} s`;
@@ -137,6 +156,13 @@
       tile('Blocks', rec.nBlocks.toLocaleString('en-US'), rec.stop === 'rest' ? `at rest after ${fmt(rec.tStop)} s` : 'stopped at the 60 s cap'),
       tile('Rotation at impact', `${fmt(rec.rigid.thetaBreak, 1)}°`, `fall ${fmt(result.tImpact)} s`),
       tile('Kinetic energy at impact', `${fmt(rec.rigid.KE / 1000, 1)} kJ/m`, `ω = ${fmt(Math.abs(rec.rigid.omega), 3)} rad/s`));
+    const W = streetW();
+    if (W) {
+      const free = Math.max(0, W - rec.p.p95.mass), k = Math.floor((W - rec.profile.x0) / rec.profile.bin);
+      const atW = k >= 0 && k < rec.profile.height.length ? rec.profile.height[k] : 0;
+      tiles.append(tile('Street width W', `${fmt(W)} m`, free > 0 ? `${fmt(free)} m free beyond P95` + (rec.Lmax >= W ? '; the farthest block reaches W' : '')
+        : `P95 reaches W; heap ${fmt(atW)} m high at W`));
+    }
     const rel = (a, b) => { const d = Math.abs(a / b - 1) * 100; return d === 0 ? '0' : d < 0.001 ? '< 0.001' : fmt(d, 3); };
     const badge = match
       ? (match.identical ? h('span', { class: 'badge good' }, `Identical to the paper's run (${match.campaign}, seed ${match.seed})`)
@@ -157,10 +183,12 @@
           h('div', { class: 'row chart-head' }, h('div', { class: 'spacer' }), FD.chartActions(() => c2, 'debris_profile')), profChart)));
     const c1 = new FD.Chart(cdfChart, { height: 260, x: { label: 'x / H', min: Math.min(0, cdfPts[0].x) }, y: { label: 'F(x)', min: 0, max: 1.02 }, crosshair: true,
       series: [{ name: 'F(x)', color: '--series-3', line: true, points: cdfPts }],
-      vlines: [{ x: rec.p.p95.mass / P.H, color: '--series-1', label: 'P95', at: 'bottom', side: 'left' }, { x: rec.Lmax / P.H, color: '--series-2', label: 'Lmax', at: 'bottom' }],
+      vlines: [{ x: rec.p.p95.mass / P.H, color: '--series-1', label: 'P95', at: 'bottom', side: 'left' }, { x: rec.Lmax / P.H, color: '--series-2', label: 'Lmax', at: 'bottom' }]
+        .concat(W ? [{ x: W / P.H, color: '--ink-2', label: 'W', dash: true }] : []),
       tooltip: (p) => ({ title: `x = ${fmt(p.x * P.H)} m (${fmt(p.x, 3)} H)`, rows: [['mass within x', `${fmt(p.y * 100, 1)} %`]] }) });
     const c2 = new FD.Chart(profChart, { height: 260, x: { label: 'x / H' }, y: { label: 'height [m]', min: 0 }, crosshair: true,
       series: [{ name: 'heap', color: '--series-1', line: true, area: true, points: profPts }],
+      vlines: W ? [{ x: W / P.H, color: '--ink-2', label: 'W', dash: true }] : [],
       tooltip: (p) => ({ title: `x = ${fmt(p.x * P.H)} m`, rows: [['height', `${fmt(p.y)} m`]] }) });
     FD.onTheme(() => { c1.draw(); c2.draw(); state.stage.draw(); }, 'single');
   }

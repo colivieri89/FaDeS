@@ -8,20 +8,22 @@ const crypto = require('crypto');
 const { runJobs, defaultWorkers } = require('../runner/pool');
 const C = require('../analyses/campaigns');
 const TOTAL = require('../analyses/total_collapse');
+const STUDY = require('../analyses/study');
+const { parseCSV } = require('../analyses/csv');
 const { MODEL_VERSION } = require('../sim/version');
 const PKG = require('../../package.json');
 
 // numbers in the interface are written with a decimal point whatever the system language
 app.commandLine.appendSwitch('lang', 'en-US');
 
-const STUDIES = { total: TOTAL };
+const STUDIES = { total: TOTAL, study: STUDY };
 let win = null;
 const running = new Map();          // id -> pool emitter
 
 function createWindow() {
   win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 1120, minHeight: 720, show: false,
-    title: 'Facade Debris Simulator',
+    title: 'FaDeS',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d0d0d' : '#f9f9f7',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
@@ -42,8 +44,12 @@ ipcMain.handle('app:info', () => ({
   defaultWorkers: defaultWorkers(), platform: process.platform, arch: process.arch, electron: process.versions.electron,
   node: process.versions.node, cpu: (os.cpus()[0] || {}).model || '', resultsDir: resultsDir(),
   campaigns: C.CAMPAIGNS, seeds: C.SEEDS, thicknesses: C.THICKNESSES, paperParams: C.PAPER_PARAMS, variability: C.VARIABILITY,
-  reference: TOTAL.reference().source,
+  reference: TOTAL.reference().source, wallDefaults: STUDY.WALL_DEFAULTS,
 }));
+
+// walls of a study from the text of a CSV file, and the template of that file
+ipcMain.handle('walls:fromCSV', (e, text) => STUDY.wallsFromRows(parseCSV(text)));
+ipcMain.handle('walls:template', () => fs.readFileSync(path.join(__dirname, '..', '..', 'reference', 'walls_template.csv'), 'utf8'));
 
 ipcMain.handle('paper:summary', (e, study, options) => STUDIES[study].paperSummary(options));
 
@@ -58,7 +64,7 @@ ipcMain.handle('study:estimate', (e, study, options, workers) => {
 ipcMain.handle('study:start', (e, study, options, workers) => {
   const S = STUDIES[study];
   const p = S.plan(options);
-  const hash = crypto.createHash('sha1').update(JSON.stringify({ study, configs: p.configs.map(c => c.id), seeds: p.options.seeds, model: MODEL_VERSION })).digest('hex').slice(0, 12);
+  const hash = crypto.createHash('sha1').update(JSON.stringify({ study, configs: p.configs, seeds: p.options.seeds, variability: p.options.variability || null, model: MODEL_VERSION })).digest('hex').slice(0, 12);
   const store = path.join(resultsDir(), study, `${hash}.partial.jsonl`);
   const id = `${study}-${Date.now()}`;
   const ev = runJobs(p.jobs, { workers: workers || defaultWorkers(), store, order: p.order });
