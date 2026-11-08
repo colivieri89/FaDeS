@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Facade Debris Simulator: rigid-block simulation of the debris of overturning masonry façades"
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/colivieri89/facade-debris-simulator"
+authors:
+  - family-names: Olivieri
+    given-names: Carlo
+    orcid: "https://orcid.org/0000-0002-3548-846X"
+    affiliation: "Pegaso University, Naples, Italy"
+  - family-names: Vaiano
+    given-names: Generoso
+    orcid: "https://orcid.org/0000-0001-7379-3361"
+    affiliation: "Pegaso University, Naples, Italy"
+  - family-names: Sibille
+    given-names: Luigi
+    orcid: "https://orcid.org/0000-0002-4083-9316"
+    affiliation: "Department of Civil and Environmental Engineering, Princeton University, Princeton, NJ, United States"
+  - family-names: Mochi
+    given-names: Giovanni
+    orcid: "https://orcid.org/0000-0003-3213-5965"
+    affiliation: "University of Perugia, Perugia, Italy"
+  - family-names: Fabbrocino
+    given-names: Francesco
+    orcid: "https://orcid.org/0000-0001-8712-1048"
+    affiliation: "Pegaso University, Naples, Italy"
+abstract: >-
+  Desktop application for Windows and macOS that reproduces the analyses of the
+  paper "Simulating the debris of overturning masonry façades with rigid blocks:
+  from the falling panel to the documented collapses". A two-dimensional section
+  of the façade overturns about its outer toe, breaks into its blocks at the
+  first impact and the blocks settle on the street in the planck.js engine; the
+  extent of the debris is measured as P95 by mass and Lmax. The program runs
+  single walls with their animation and the total-collapse campaigns of the
+  paper, and compares every run with the stored runs of the paper.
+keywords:
+  - masonry
+  - façade
+  - out-of-plane overturning
+  - debris
+  - rigid blocks
+  - discrete element simulation
+  - earthquake
+  - street blockage

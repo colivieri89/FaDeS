@@ -1,21 +1,16 @@
-# Tests on Linux, Windows and macOS; installers for macOS (dmg) and Windows (exe).
-# A tag v* (for example v1.0.0) publishes the installers as a GitHub release.
-name: build
+name: Build installers
 
+# Installers for macOS (dmg, Apple Silicon and Intel) and Windows (exe). Started by hand (Actions, Run workflow) it
+# only builds them; on a tag v* (for example v1.0.0) it also publishes them as a GitHub release.
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +21,7 @@ jobs:
       - run: npm test
 
   installers:
-    needs: test
+    needs: tests
     strategy:
       fail-fast: false
       matrix:
@@ -34,10 +29,13 @@ jobs:
           - os: macos-latest
             script: dist:mac
             files: dist/*.dmg
+            name: macOS
           - os: windows-latest
             script: dist:win
             files: dist/*.exe
+            name: Windows
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,11 +48,12 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # no certificate: ad-hoc signature on macOS (package.json), none on Windows
       - uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.os }}
+          name: Facade-Debris-Simulator-${{ matrix.name }}
           path: ${{ matrix.files }}
           if-no-files-found: error
 
   release:
+    # on a tag v*, attach the installers to a GitHub release of that tag
     if: startsWith(github.ref, 'refs/tags/v')
     needs: installers
     runs-on: ubuntu-latest
@@ -63,9 +62,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: installers
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          draft: true
+          files: installers/*
+          generate_release_notes: true

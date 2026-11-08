@@ -67,8 +67,9 @@ npm run dist:mac    # dist/*.dmg (on a Mac)
 npm run dist:win    # dist/*.exe (on Windows)
 ```
 
-The workflow in `.github/workflows/build.yml` runs the tests on Linux, Windows and macOS, then builds both installers.
-Pushing a tag such as `v1.0.0` creates a draft release with the installers attached.
+The tests run on Linux, Windows and macOS at every push (`.github/workflows/tests.yml`). The installers are built by
+`.github/workflows/build.yml`, started by hand from the Actions tab or by a tag such as `v1.0.0`, which also publishes
+them as a release.
 
 ## Agreement with the paper
 
@@ -115,7 +116,8 @@ An empty template is in `reference/documented_cases_template.csv`.
 
 ## Citation
 
-If you use this program, please cite the paper (the full reference will be added on publication).
+If you use this program, please cite the paper (the full reference will be added on publication). The software itself is
+cited from `CITATION.cff` (on GitHub: *Cite this repository*).
 
 ## Licence
 

@@ -6,12 +6,7 @@
     { group: null, items: [{ view: 'home', sec: null, icon: 'home', label: 'Overview' }] },
     { group: 'Paper', items: [
       { view: 'single', sec: '2', label: 'Single wall' },
-      { view: null, sec: '3', label: 'Rigid phase' },
-      { view: null, sec: '4', label: 'In-flight integrity' },
       { view: 'total', sec: '5', label: 'Total collapse' },
-      { view: null, sec: '6', label: 'Partial collapse' },
-      { view: null, sec: '7', label: 'Documented collapses' },
-      { view: null, sec: 'A', label: 'Verification' },
     ] },
     { group: null, items: [{ view: 'about', sec: null, icon: 'info', label: 'About' }] },
   ];
