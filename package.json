@@ -45,7 +45,9 @@
       "src/**/*",
       "reference/campaign_runs.json",
       "reference/breakup_p95.json",
-      "reference/walls_template.csv"
+      "reference/walls_template.csv",
+      "reference/integrity_nominal.json",
+      "reference/rigid_checks.json"
     ],
     "mac": {
       "target": [

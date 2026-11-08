@@ -9,6 +9,8 @@
       { view: 'study', icon: 'chart', label: 'Parametric study' },
     ] },
     { group: 'Paper', items: [
+      { view: 'rigid', sec: '3', label: 'Rigid phase' },
+      { view: 'integrity', sec: '4', label: 'Integrity in the fall' },
       { view: 'total', sec: '5', label: 'Total collapse' },
     ] },
     { group: null, items: [{ view: 'about', sec: null, icon: 'info', label: 'About' }] },

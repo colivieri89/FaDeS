@@ -46,13 +46,20 @@
     if (kind === 'line') svg.append(s('path', { d: 'M1 7h12', stroke: col(color), 'stroke-width': 2, 'stroke-linecap': 'round' }));
     else if (kind === 'dash') svg.append(s('path', { d: 'M1 7h12', stroke: col(color), 'stroke-width': 1.5, 'stroke-dasharray': '3 2' }));
     else svg.append(marker(kind, 7, 7, 4.2, filled ? col(color) : col('--surface'), col(color), filled ? 0 : 1.5, null));
+    // in the page the legend follows the theme: colours as CSS variables (the exported charts keep resolved colours)
+    const v = (c) => c && c.startsWith('--') ? `var(${c})` : c;
+    svg.querySelectorAll('circle, rect, path').forEach(n => {
+      if (n.getAttribute('fill') && n.getAttribute('fill') !== 'none') n.style.fill = filled ? v(color) : 'var(--surface)';
+      if (n.getAttribute('stroke') && n.getAttribute('stroke') !== 'none') n.style.stroke = v(color);
+    });
     return svg;
   };
   FD.legend = (items) => FD.h('div', { class: 'legend' }, items.map(it => FD.h('span', { class: 'item' }, FD.legendMarker(it.marker, it.color, it.filled), it.name)));
 
-  // spec: { height, x: {label, log, min, max}, y: {...}, series: [{name, color, marker, filled, size, line, points: [{x, y, ...}]}],
+  // spec: { height, x: {label, log, min, max, ticks}, y: {...}, series: [{name, color, marker, filled, size, line, points: [{x, y, ...}]}],
   //         hlines: [{y, label, color}], vlines: [{x, label, color}], tooltip: (point, series) => ({ title, rows: [[name, value]] }),
-  //         crosshair: true (line charts) }
+  //         crosshair: true (line charts), equal: true (same scale on both axes, for drawings),
+  //         polys: [{points: [[x, y], ...], fill, opacity, stroke, width, dash}], segs: [{x1, y1, x2, y2, color, width, dash}] }
   function Chart(container, spec) {
     this.el = container; this.spec = spec;
     this.el.classList.add('chart');
@@ -64,7 +71,9 @@
   Chart.prototype.draw = function () {
     const sp = this.spec, W = Math.max(320, this.el.clientWidth || 600), H = sp.height || 300;
     const M = { l: 56, r: 18, t: 12, b: 44 };
-    const pts = sp.series.flatMap(se => se.points.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y)));
+    const pts = sp.series.flatMap(se => se.points.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y)))
+      .concat((sp.polys || []).flatMap(q => q.points.map(([x, y]) => ({ x, y }))))
+      .concat((sp.segs || []).flatMap(q => [{ x: q.x1, y: q.y1 }, { x: q.x2, y: q.y2 }]));
     const ext = (k, ax) => {
       let lo = ax.min, hi = ax.max;
       const vals = pts.map(p => p[k]).concat(((k === 'y' ? sp.hlines : sp.vlines) || []).map(l => l[k])).filter(v => Number.isFinite(v) && (!ax.log || v > 0));
@@ -73,16 +82,22 @@
       if (ax.log) { lo = lo / 1.25; hi = hi * 1.25; } else if (ax.min == null || ax.max == null) { const pad = (hi - lo || Math.abs(hi) || 1) * 0.06; if (ax.min == null) lo -= pad; if (ax.max == null) hi += pad; }
       return [lo, hi];
     };
-    const [x0, x1] = ext('x', sp.x), [y0, y1] = ext('y', sp.y);
-    const ytPre = sp.y.log ? logTicks(y0, y1) : linTicks(y0, y1, 5);
-    const yFmt = sp.y.fmt || (ytPre.decimals != null ? (v) => v.toFixed(ytPre.decimals) : tickFmt);
+    let [x0, x1] = ext('x', sp.x), [y0, y1] = ext('y', sp.y);
+    let ytPre = sp.y.ticks || (sp.y.log ? logTicks(y0, y1) : linTicks(y0, y1, 5));
+    let yFmt = sp.y.fmt || (ytPre.decimals != null ? (v) => v.toFixed(ytPre.decimals) : tickFmt);
     M.l = Math.max(56, 34 + 6.6 * Math.max(...ytPre.map(v => yFmt(v).length)));
+    if (sp.equal) {                       // widen the axis with the coarser scale so that one metre is as long on both
+      const pw = W - M.l - M.r, ph = H - M.t - M.b, kx = (x1 - x0) / pw, ky = (y1 - y0) / ph;
+      if (kx < ky) { const c = (x0 + x1) / 2; x0 = c - ky * pw / 2; x1 = c + ky * pw / 2; }
+      else { const c = (y0 + y1) / 2; y0 = c - kx * ph / 2; y1 = c + kx * ph / 2;
+        ytPre = sp.y.ticks || linTicks(y0, y1, 5); yFmt = sp.y.fmt || (ytPre.decimals != null ? (v) => v.toFixed(ytPre.decimals) : tickFmt); }
+    }
     const map = (v, a, b, p, q, log) => log ? p + (Math.log(v) - Math.log(a)) / (Math.log(b) - Math.log(a)) * (q - p) : p + (v - a) / (b - a) * (q - p);
     const X = (v) => map(v, x0, x1, M.l, W - M.r, sp.x.log), Y = (v) => map(v, y0, y1, H - M.b, M.t, sp.y.log);
     const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': sp.title || '', 'font-family': FD.css('--font') || 'system-ui', 'font-size': 11.5 });
     const grid = col('--grid'), axis = col('--axis'), muted = col('--muted'), ink2 = col('--ink-2'), surface = col('--surface');
     svg.append(s('rect', { x: 0, y: 0, width: W, height: H, fill: surface }));
-    const xt = sp.x.log ? logTicks(x0, x1) : linTicks(x0, x1, Math.max(3, Math.round(W / 110)));
+    const xt = sp.x.ticks || (sp.x.log ? logTicks(x0, x1) : linTicks(x0, x1, Math.max(3, Math.round(W / 110))));
     const xFmt = sp.x.fmt || (xt.decimals != null ? (v) => v.toFixed(xt.decimals) : tickFmt);
     const yt = ytPre;
     for (const v of yt) { const y = Y(v); svg.append(s('line', { x1: M.l, x2: W - M.r, y1: y, y2: y, stroke: grid, 'stroke-width': 1 })); const t = s('text', { x: M.l - 8, y: y + 4, 'text-anchor': 'end', fill: muted }); t.textContent = yFmt(v); svg.append(t); }
@@ -104,6 +119,13 @@
         const t = s('text', { x: left ? x - 5 : x + 5, y, fill: ink2, 'font-size': 11, 'text-anchor': left ? 'end' : 'start' }); t.textContent = l.label; svg.append(t);
       }
     }
+    for (const q of sp.polys || []) {
+      const d = q.points.map(([x, y], i) => `${i ? 'L' : 'M'}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join('') + 'Z';
+      plot.append(s('path', { d, fill: q.fill ? col(q.fill) : 'none', 'fill-opacity': q.opacity != null ? q.opacity : null,
+        stroke: q.stroke ? col(q.stroke) : 'none', 'stroke-width': q.width || 1.2, 'stroke-dasharray': q.dash ? '5 3' : null, 'stroke-linejoin': 'round' }));
+    }
+    for (const q of sp.segs || []) plot.append(s('line', { x1: X(q.x1), y1: Y(q.y1), x2: X(q.x2), y2: Y(q.y2), stroke: col(q.color || '--muted'),
+      'stroke-width': q.width || 1.2, 'stroke-dasharray': q.dash ? '4 3' : null, 'stroke-linecap': q.cap || 'round' }));
     const hits = [];
     for (const se of sp.series) {
       const c = col(se.color), ok = se.points.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y) && (!sp.x.log || p.x > 0) && (!sp.y.log || p.y > 0));

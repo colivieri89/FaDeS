@@ -36,11 +36,13 @@ abstract: >-
   street width, as the width left free. Any wall can be simulated, in total or
   partial collapse, with its own height, thickness, block size, diatone courses
   and materials, one at a time with its animation or many at a time from a grid
-  or a CSV file. It is the simulator of the paper "Simulating the debris of
-  overturning masonry façades with rigid blocks: from the falling panel to the
-  documented collapses" and reproduces its analyses, comparing every run of the
-  paper's campaigns with the paper's stored runs. Desktop application for
-  Windows and macOS, and command line.
+  or a CSV file. For walls in total collapse it also checks the rigid phase
+  against a closed form, and the integrity of the falling panel with no tensile
+  strength or with any tensile strength. It is the simulator of the paper
+  "Simulating the debris of overturning masonry façades with rigid blocks: from
+  the falling panel to the documented collapses" and reproduces its analyses,
+  comparing every run of the paper's campaigns with the paper's stored results.
+  Desktop application for Windows and macOS, and command line.
 keywords:
   - masonry
   - façade

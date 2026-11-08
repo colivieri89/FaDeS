@@ -91,6 +91,9 @@ async function execute(job, notify) {
   }
   if (job.kind === 'breakup') return breakupRecord(job);
   if (job.kind === 'animate') return animateRecord(job, notify);
+  // Sects. 3 and 4 of the paper: the checks of the rigid phase and the integrity of the falling panel
+  const INT = require('../analyses/integrity/study');
+  if (INT.KINDS.includes(job.kind)) return INT.execute(job);
   throw new Error(`unknown job kind ${job.kind}`);
 }
 

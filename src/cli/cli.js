@@ -8,6 +8,7 @@ const { runJobs, defaultWorkers } = require('../runner/pool');
 const C = require('../analyses/campaigns');
 const TOTAL = require('../analyses/total_collapse');
 const STUDY = require('../analyses/study');
+const INTEGRITY = require('../analyses/integrity/study');
 const { parseCSV } = require('../analyses/csv');
 const { parseSeeds } = require('../analyses/stats');
 const { readCases } = require('../analyses/csv');
@@ -22,6 +23,12 @@ const HELP = `FaDeS (Façade Debris Simulator), command line
          or  --campaigns C1,C3                  the configurations of the paper's campaigns (C1-C4)
       --seeds 1-20           seeds (list or ranges)
       --W 6                  street width [m]: width left free, seeds whose debris reaches W, heap height at W
+  node src/cli/cli.js integrity [walls] [options]   integrity of the falling panel (Sect. 4), total collapse
+      walls: --campaigns C1,C2 (default), --H 6,9 --t 0.45,0.60 [wall], or --walls walls.csv
+      --ft 0.04,0.10         tensile strengths of the check [MPa] (default 0.04, 0.10)
+      --stored               the paper's values, from its stored results (C1-C2), without running anything
+  node src/cli/cli.js rigid [--H 15,10 --t 0.30,0.60] [--mu 0.75]   checks of the rigid phase (Sect. 3): one wall
+                             per pair H, t (default: the five walls of the paper), and the tests of the two-block code
   node src/cli/cli.js paper                     the values of Sect. 5 of the paper, from its stored runs
   node src/cli/cli.js total [options]           the total-collapse study of the paper (Sect. 5, Fig. 7)
       --campaigns C1,C2      --heights 2.5,5,...   --thicknesses 0.30,0.60,...
@@ -191,6 +198,79 @@ async function study(o) {
   console.error(`summary written to ${path.join(out, `study_${hash}.summary.{json,csv}`)}`);
 }
 
+function printIntegrity(s) {
+  const T = s.totals, rng = (a, d = 2) => (f(a[0], d) === f(a[1], d) ? f(a[0], d) : `${f(a[0], d)}-${f(a[1], d)}`);
+  const rows = s.rows.map(r => { const q = r.fc && r.fc['0'] || {}, low = q.end === 'hingeB1';
+    return [r.id, f(r.t / r.H, 3), f(q.thetaOnset, 1), f(q.sOverH, 2), low && q.newHinge ? f(q.newHinge.s_over_H, 2) : q.end || '-', low ? f(1000 * q.tAfterHinge, 1) : '',
+      r.b2 ? (r.b2.end === 'secondHingeB2' ? f(r.b2.newHinge.s_over_H, 2) : r.b2.end) : '-', r.slideBeforeHinge ? f(r.slideLeadDeg, 2) : '']
+      .concat(...s.keys.map(k => [r.elastic && r.elastic[k] ? f(r.elastic[k].theta, 1) : 'none', r.plastic && r.plastic[k] ? f(r.plastic[k].theta, 1) : 'none'])); });
+  const head = ['wall', 't/H', 'hinge deg', 's/H', 'lower s/H', 'lower ms', 'upper s/H', 'slide lead'].concat(...s.keys.map(k => [`el ${k}`, `pl ${k}`]));
+  const w = head.map((h, i) => Math.max(h.length, ...rows.map(r => String(r[i]).length)));
+  const line = (r) => r.map((c, i) => i ? String(c).padStart(w[i]) : String(c).padEnd(w[i])).join('  ');
+  console.log(line(head)); for (const r of rows) console.log(line(r));
+  console.log(`\n${T.n} wall${T.n === 1 ? '' : 's'}; with no tensile strength ${T.nHinge} hinge before landing, at ${rng(T.thetaRange, 1)} deg and s/H ${rng(T.sRange)}`);
+  console.log(`lower block at its limit in ${T.nLower} (${rng(T.lowerMsRange, 1)} ms after the first hinge), the joint slides first in ${T.nLowerSlide}`);
+  console.log(`upper block alone: second hinge in ${T.nUpper} (s/H ${rng(T.upperSRange)}, ${rng(T.upperTRange)} s), the joint slides in ${T.nUpperSlide}`);
+  for (const k of s.keys) console.log(`f_t ${k}: intact at landing ${T.survElastic[k]} (elastic) and ${T.survPlastic[k]} (rigid-plastic); reach the ground in at most two blocks ${T.groundElastic[k]} and ${T.groundPlastic[k]}`);
+  if (s.keys.some(k => T.groundElastic[k] + T.groundPlastic[k] > 0)) console.log(`difference of P95 and Lmax at break-up of those walls from the rigid panel: at most ${f(T.marginMaxElastic, 2)} % (elastic), ${f(T.marginMaxPlastic, 2)} % (rigid-plastic)`);
+  console.log(`a bed joint slides before the first hinge in ${T.nSlideFirst}${T.nSlideFirst ? `, ${rng(T.slideLeadRange)} deg earlier` : ''}`);
+}
+
+async function integrity(o) {
+  if (o.stored) { printIntegrity(INTEGRITY.paperSummary()); return; }
+  const options = { campaigns: [], walls: [], fts: o.ft != null ? list(o.ft) : undefined };
+  const spec = wallSpec(o); delete spec.W; delete spec.e; delete spec.Hr; delete spec.HrRatio;
+  if (spec.mechanism !== 'total') throw new Error('the integrity analysis is for total collapse');
+  if (o.walls) options.walls = STUDY.wallsFromRows(parseCSV(fs.readFileSync(o.walls, 'utf8')));
+  if (o.H != null || o.t != null) {
+    if (o.H == null || o.t == null) throw new Error('a grid needs both --H and --t');
+    options.grid = Object.assign(spec, { heights: list(o.H), thicknesses: list(o.t) });
+  }
+  if (o.campaigns || (!options.grid && !options.walls.length)) options.campaigns = o.campaigns ? list(o.campaigns, String) : ['C1', 'C2'];
+  if (options.fts === undefined) delete options.fts;
+  const p = INTEGRITY.plan(options);
+  const skipped = options.walls.filter(w => w.mechanism !== 'total').length;
+  const out = path.resolve(o.out || 'results');
+  const native = !!o['native-math'];
+  const hash = crypto.createHash('sha1').update(JSON.stringify({ configs: p.configs, fts: p.options.fts, model: MODEL_VERSION, native })).digest('hex').slice(0, 12);
+  const store = path.join(out, `integrity_${hash}.partial.jsonl`);
+  const workers = +(o.workers || defaultWorkers());
+  const est = INTEGRITY.estimate(p, workers).wall_s;
+  console.error(`${p.configs.length} wall${p.configs.length === 1 ? '' : 's'}${skipped ? ` (${skipped} partial collapse${skipped === 1 ? '' : 's'} left out)` : ''}, tensile strengths ${p.options.fts.join(', ') || 'none'} MPa, ${workers} parallel runs${native ? ', native Math' : ''}, roughly ${est < 120 ? `${Math.ceil(est)} s` : `${Math.ceil(est / 60)} min`}; results stored in ${store}`);
+  const ev = runJobs(p.jobs, { workers, store, order: p.order, nativeMath: native });
+  ev.on('progress', progressLine);
+  ev.on('error', (e) => console.error('\n' + (e.stack || e)));
+  process.on('SIGINT', () => { console.error('\nstopping; the finished walls are stored and will be reused'); ev.cancel(); });
+  const results = await ev.done;
+  process.stderr.write('\n');
+  const s = INTEGRITY.summarize(p, results);
+  printIntegrity(s);
+  const T = s.totals;
+  if (T.nCompared) console.log(`compared with the paper's stored results: ${T.nIdentical}/${T.nCompared} walls identical` +
+    (T.nIdentical < T.nCompared ? `; largest relative difference of the others ${T.maxRelDiff.toExponential(1)}${native ? '' : ' (rounding: see --native-math)'}` : ''));
+  fs.writeFileSync(path.join(out, `integrity_${hash}.summary.json`), JSON.stringify(s, null, 1));
+  fs.writeFileSync(path.join(out, `integrity_${hash}.summary.csv`), INTEGRITY.toCSV(s));
+  console.error(`summary written to ${path.join(out, `integrity_${hash}.summary.{json,csv}`)}`);
+}
+
+async function rigid(o) {
+  const params = {};
+  if (o.H != null || o.t != null) {
+    const H = list(o.H), t = list(o.t);
+    if (H.length !== t.length) throw new Error('--H and --t: one thickness for each height');
+    params.walls = H.map((h, i) => ({ H: h, t: t[i], mu: o.mu != null ? +o.mu : undefined }));
+  }
+  const [r] = await runJobs([{ kind: 'rigidChecks', id: 'rigid', tag: { rigidChecks: true }, params }], { workers: 1, nativeMath: !!o['native-math'] }).done;
+  const e = (x) => x == null ? '-' : Number(x).toExponential(1);
+  const rows = r.walls.map(w => [f(w.H, 2), f(w.t, 2), f(w.tOverH, 3), f(w.mu, 2), f(w.slipCode, 3), f(w.slipClosedForm, 3), e(Math.abs(w.diff)), e(w.drift), e(w.landing), w.slides ? e(w.slideResidual) : '-']);
+  const head = ['H m', 't m', 't/H', 'mu', 'slip deg', 'closed form', 'difference', 'energy drift', 'landing h/2', 'slide residual'];
+  const w = head.map((h, i) => Math.max(h.length, ...rows.map(x => String(x[i]).length)));
+  console.log(head.map((h, i) => h.padStart(w[i])).join('  ')); for (const x of rows) console.log(x.map((c, i) => String(c).padStart(w[i])).join('  '));
+  const T = r.twoBlock, mx = (q) => Math.max(...Object.values(q));
+  console.log(`\ntwo-block code: V1 (one body, ${T.V1_n} walls of C1-C2) ${e(mx(T.V1))} ${T.V1_pass ? 'pass' : 'FAIL'}; V2 (free flight) ${e(Math.max(T.V2.relE, T.V2.relPx, T.V2.relL))} ${T.V2_pass ? 'pass' : 'FAIL'}; V3 (two rods, t = 1e-9 m) ${e(T.V3['1e-9'])} ${T.V3_pass ? 'pass' : 'FAIL'}`);
+  console.log(`internal actions, thin rod: largest relative error ${e(r.rod.maxRelErr)} (${r.rod.n} sections)`);
+}
+
 function paper() { printSummary(TOTAL.paperSummary({})); }
 
 async function main() {
@@ -201,6 +281,8 @@ async function main() {
   if (cmd === 'total') return total(o);
   if (cmd === 'run') return single(o);
   if (cmd === 'study') return study(o);
+  if (cmd === 'integrity') return integrity(o);
+  if (cmd === 'rigid') return rigid(o);
   console.error(`unknown command ${cmd}\n`); console.log(HELP); process.exitCode = 2;
 }
 main().catch((e) => { console.error(e.stack || e); process.exitCode = 1; });

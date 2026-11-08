@@ -5,7 +5,7 @@
   --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee; --sidebar: #f1f0ec;
   --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781; --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
   --accent: #2a78d6; --accent-ink: #ffffff; --accent-wash: rgba(42,120,214,0.10);
-  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --ref: #898781;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100; --series-5: #e87ba4; --ref: #898781;
   --good: #0ca30c; --good-ink: #006300; --warning: #fab219; --critical: #d03b3b;
   --masonry: #b98a6e; --masonry-dark: #8a5f47; --masonry-line: rgba(60,35,20,0.28); --ground: #6f6c66; --building: #dcdad3;
   --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
@@ -18,7 +18,7 @@
     --page: #0d0d0d; --surface: #1a1a19; --surface-2: #222220; --sidebar: #131312;
     --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
     --accent: #3987e5; --accent-wash: rgba(57,135,229,0.16);
-    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --ref: #898781;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --ref: #898781;
     --good-ink: #0ca30c;
     --masonry: #a77a60; --masonry-dark: #7a5340; --masonry-line: rgba(0,0,0,0.35); --ground: #9a978f; --building: #2a2a28;
     --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
@@ -29,7 +29,7 @@
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #222220; --sidebar: #131312;
   --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
   --accent: #3987e5; --accent-wash: rgba(57,135,229,0.16);
-  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --ref: #898781;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181; --ref: #898781;
   --good-ink: #0ca30c;
   --masonry: #a77a60; --masonry-dark: #7a5340; --masonry-line: rgba(0,0,0,0.35); --ground: #9a978f; --building: #2a2a28;
   --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);

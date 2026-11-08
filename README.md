@@ -31,16 +31,32 @@ reproduces the paper's analyses.
 
   For each wall it gives the extent at break-up and at rest, as seed medians and ranges. With a street width it adds
   the width left free, the number of seeds whose debris reaches the far side, and the height of the debris there.
-- **The paper, Section 5 (Fig. 7).** The 48 total-collapse configurations of campaigns C1 and C2, 20 seeds each. Until
-  you run anything, the values shown are computed from the paper's stored runs.
+- **Rigid phase (Section 3 of the paper).** For up to five walls of any size and friction, the overturning phase is
+  checked against the closed form of a rectangle pivoting about its toe:
+  - the angle at which the toe slips;
+  - the energy drift;
+  - the landing state with the step halved;
+  - the energy balance of the slide regime.
 
-A wall that coincides with a configuration of the paper's campaigns, with the paper's seeds, is run with exactly the
-campaign's parameters and compared with the paper's stored run. The other analyses of the paper (rigid phase,
-integrity during the fall, partial collapse, documented collapses, verification) are in preparation.
+  The tests of the two-block code and of the internal actions are shown with them.
+- **Integrity in the fall (Section 4, Figs. 5–6).** For any walls in total collapse it computes:
+  - the force and the moment that each section of the falling panel must carry;
+  - the first hinge with no tensile strength, and the two-block motion that follows it;
+  - the check at any tensile strengths, in its elastic and rigid-plastic forms.
+
+  The walls are the paper's campaigns, a grid or a CSV file, with their own blocks, friction and density.
+- **Total collapse (Section 5, Fig. 7).** The 48 total-collapse configurations of campaigns C1 and C2, 20 seeds each.
+
+Until you run anything, the paper's views show the values computed from its stored results. A wall that coincides with
+a configuration of the paper's campaigns is run with exactly the campaign's parameters and compared with the paper's
+stored result. Partial collapse (Section 6), the documented collapses (Section 7) and the convergence tests
+(Appendix A) are in preparation.
 
 Results are exported as CSV or JSON, and charts as SVG or PNG.
 
 ![Parametric study](docs/screenshots/7b_study_results.png)
+
+![Integrity in the fall](docs/screenshots/9_integrity.png)
 
 ## Input
 
@@ -113,9 +129,19 @@ node src/cli/cli.js study --H 6,9,12 --t 0.45,0.60 --seeds 1-20 --W 6
 # your own walls, one per row of a CSV file
 node src/cli/cli.js study --walls my_walls.csv --seeds 1-20
 
-# the paper
-node src/cli/cli.js paper                                              # Sect. 5 values from the stored runs
-node src/cli/cli.js total --campaigns C1 --heights 5,10 --seeds 1-20   # part of the Sect. 5 study
+# the rigid phase (Sect. 3): the paper's five walls, or walls of your own (one thickness per height)
+node src/cli/cli.js rigid
+node src/cli/cli.js rigid --H 8,4 --t 0.50,0.80 --mu 0.6
+
+# integrity in the fall (Sect. 4): the paper's walls, a grid with its own materials and tensile strengths, or a CSV file
+node src/cli/cli.js integrity --stored                                 # the paper's values, from its stored results
+node src/cli/cli.js integrity                                          # the 48 walls of C1-C2, compared with the paper
+node src/cli/cli.js integrity --H 6,9 --t 0.45 --mu 0.6 --rho 1700 --ft 0.05,0.2
+node src/cli/cli.js integrity --walls my_walls.csv
+
+# total collapse (Sect. 5)
+node src/cli/cli.js paper                                              # the values from the stored runs
+node src/cli/cli.js total --campaigns C1 --heights 5,10 --seeds 1-20   # part of the study
 
 node src/cli/cli.js --help
 ```
@@ -138,7 +164,8 @@ One wall per row, comma or semicolon separated. A template with two example wall
 | `mu`, `muG`, `e`, `rho` | friction, restitution, density (optional) |
 | `W_m` | street width, m (optional) |
 
-Empty optional cells take the values of the paper's campaigns.
+Empty optional cells take the values of the paper's campaigns. The same file can be used by the integrity analysis,
+which takes its walls in total collapse.
 
 ## Building the installers
 
@@ -153,8 +180,9 @@ publishes the installers as a release.
 
 ## Agreement with the paper
 
-The paper's 1920 runs (campaigns C1–C4, seeds 1–20) are stored in `reference/`. Runs made with the program use the
-same code, parameters and random draws.
+The paper's 1920 runs (campaigns C1–C4, seeds 1–20) are stored in `reference/`, with the results of its checks of
+the rigid phase and of the integrity of the 48 walls of C1–C2. Runs made with the program use the same code,
+parameters and random draws.
 
 Agreement to the last bit cannot be guaranteed on every computer. The trajectory of thousands of contacts depends on
 the last bit of `sin`, `cos`, `atan2` and `log`, and these are not rounded identically by every JavaScript runtime and
@@ -162,9 +190,11 @@ processor. The program therefore carries its own implementation of these functio
 same result. Against the paper:
 
 - most runs are identical;
-- in the others, P95 differs by less than 0.1 % and Lmax by less than 0.5 %.
+- in the others, P95 differs by less than 0.1 % and Lmax by less than 0.5 %;
+- the checks of the rigid phase and of the integrity of the panel agree within 10⁻¹² (relative), with every count
+  of the paper unchanged.
 
-On Apple Silicon with Node.js 24, the command line with `--native-math` reproduces the stored runs bit for bit.
+On Apple Silicon with Node.js 24, the command line with `--native-math` reproduces the stored results bit for bit.
 
 ## Data
 
@@ -175,11 +205,11 @@ The program ships no field data. Documented collapses can be loaded from a CSV f
 | folder | content |
 |---|---|
 | `src/sim` | the simulator: rigid phase, break-up, debris phase in planck.js, measures, deterministic functions |
-| `src/analyses` | studies of any set of walls, the campaigns of the paper and the summaries of its sections |
+| `src/analyses` | studies of any set of walls, the campaigns of the paper and the summaries of its sections; `integrity/`: the checks of the rigid phase and the integrity of the falling panel |
 | `src/runner` | parallel and resumable execution on worker threads |
 | `src/main`, `src/renderer` | the desktop interface (Electron) |
 | `src/cli` | the command line |
-| `reference` | the stored runs of the paper, the template of the CSV file of walls |
+| `reference` | the stored results of the paper, the template of the CSV file of walls |
 | `test` | tests |
 
 ## Citation

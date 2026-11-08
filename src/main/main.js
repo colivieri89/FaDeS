@@ -9,6 +9,7 @@ const { runJobs, defaultWorkers } = require('../runner/pool');
 const C = require('../analyses/campaigns');
 const TOTAL = require('../analyses/total_collapse');
 const STUDY = require('../analyses/study');
+const INTEGRITY = require('../analyses/integrity/study');
 const { parseCSV } = require('../analyses/csv');
 const { MODEL_VERSION } = require('../sim/version');
 const PKG = require('../../package.json');
@@ -16,7 +17,7 @@ const PKG = require('../../package.json');
 // numbers in the interface are written with a decimal point whatever the system language
 app.commandLine.appendSwitch('lang', 'en-US');
 
-const STUDIES = { total: TOTAL, study: STUDY };
+const STUDIES = { total: TOTAL, study: STUDY, integrity: INTEGRITY };
 let win = null;
 const running = new Map();          // id -> pool emitter
 
@@ -44,7 +45,7 @@ ipcMain.handle('app:info', () => ({
   defaultWorkers: defaultWorkers(), platform: process.platform, arch: process.arch, electron: process.versions.electron,
   node: process.versions.node, cpu: (os.cpus()[0] || {}).model || '', resultsDir: resultsDir(),
   campaigns: C.CAMPAIGNS, seeds: C.SEEDS, thicknesses: C.THICKNESSES, paperParams: C.PAPER_PARAMS, variability: C.VARIABILITY,
-  reference: TOTAL.reference().source, wallDefaults: STUDY.WALL_DEFAULTS,
+  reference: TOTAL.reference().source, wallDefaults: STUDY.WALL_DEFAULTS, checkWalls: INTEGRITY.CHECK_WALLS,
 }));
 
 // walls of a study from the text of a CSV file, and the template of that file
@@ -52,19 +53,28 @@ ipcMain.handle('walls:fromCSV', (e, text) => STUDY.wallsFromRows(parseCSV(text))
 ipcMain.handle('walls:template', () => fs.readFileSync(path.join(__dirname, '..', '..', 'reference', 'walls_template.csv'), 'utf8'));
 
 ipcMain.handle('paper:summary', (e, study, options) => STUDIES[study].paperSummary(options));
+ipcMain.handle('paper:rigid', () => INTEGRITY.paperRigid());
+
+// one job of Sects. 3-4 in a worker thread (a few seconds): the checks of the rigid phase, or the trace of one wall
+ipcMain.handle('integrity:job', async (e, kind, params) => {
+  if (!['rigidChecks', 'integrityTrace'].includes(kind)) throw new Error(`unknown job ${kind}`);
+  if (kind === 'integrityTrace') params = { cfg: params };          // a wall of a summary row (row.wall)
+  const [r] = await runJobs([{ kind, id: kind, tag: { [kind]: true }, params }], { workers: 1 }).done;
+  return r;
+});
 
 ipcMain.handle('study:estimate', (e, study, options, workers) => {
-  const p = STUDIES[study].plan(options);
-  const est = STUDIES[study].estimate(p);
+  const p = STUDIES[study].plan(options), w = Math.max(1, workers || defaultWorkers());
+  const est = STUDIES[study].estimate(p, w);           // wall_s when the study knows its longest job, else cpu_s / w
   return { nJobs: p.jobs.length, nRuns: p.jobs.filter(j => j.kind === 'run').length, nConfigs: p.configs.length, cpu_s: est.cpu_s,
-           wall_s: est.cpu_s / Math.max(1, workers || defaultWorkers()) };
+           wall_s: est.wall_s != null ? est.wall_s : est.cpu_s / w };
 });
 
 // a study runs in the pool; its runs are stored in the user's data folder, so that a stopped study resumes
 ipcMain.handle('study:start', (e, study, options, workers) => {
   const S = STUDIES[study];
   const p = S.plan(options);
-  const hash = crypto.createHash('sha1').update(JSON.stringify({ study, configs: p.configs, seeds: p.options.seeds, variability: p.options.variability || null, model: MODEL_VERSION })).digest('hex').slice(0, 12);
+  const hash = crypto.createHash('sha1').update(JSON.stringify({ study, configs: p.configs, seeds: p.options.seeds, variability: p.options.variability || null, fts: p.options.fts, model: MODEL_VERSION })).digest('hex').slice(0, 12);
   const store = path.join(resultsDir(), study, `${hash}.partial.jsonl`);
   const id = `${study}-${Date.now()}`;
   const ev = runJobs(p.jobs, { workers: workers || defaultWorkers(), store, order: p.order });

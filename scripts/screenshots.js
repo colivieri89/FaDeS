@@ -16,7 +16,7 @@ app.whenReady().then(async () => {
   const js = (code) => win.webContents.executeJavaScript(code);
   const until = async (cond, ms = 120000) => { const t0 = Date.now(); while (!(await js(cond))) { if (Date.now() - t0 > ms) throw new Error('timeout: ' + cond); await wait(250); } };
   const scroll = (y) => js(`document.getElementById('main').scrollTop = ${y}`);
-  const shot = async (name) => { const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(OUT, name + '.png'), img.toPNG()); console.log('saved', name); };
+  const shot = async (name) => { await js("document.getElementById('toast').classList.remove('show')"); await wait(300); const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(OUT, name + '.png'), img.toPNG()); console.log('saved', name); };
   try {
     await until("document.querySelector('.hero') !== null");
     await wait(9000); await shot('1_overview');
@@ -59,6 +59,15 @@ app.whenReady().then(async () => {
     await wait(800); await scroll(560); await wait(400); await shot('7b_study_results');
     await scroll(1400); await wait(400); await shot('7c_study_table'); await scroll(0);
     console.log('study tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
+    // Sects. 3 and 4 with the paper's stored results; (a) of Fig. 5 is computed when the view opens
+    await js("document.querySelector('[data-view=rigid]').click()");
+    await until("document.querySelector('table.data tbody tr') !== null");
+    await wait(800); await scroll(520); await wait(400); await shot('8_rigid_phase'); await scroll(0);
+    await js("document.querySelector('[data-view=integrity]').click()");
+    await until("/first hinge at/.test([...document.querySelectorAll('.chart-head .muted.small')].map(e => e.textContent).join(' '))", 180000);
+    await wait(800); await scroll(560); await wait(400); await shot('9_integrity');
+    await scroll(1250); await wait(400); await shot('9b_integrity_events'); await scroll(0);
+    console.log('integrity tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
     await js("document.querySelector('[data-view=about]').click()");
     await wait(600); await shot('6_about');
   } catch (e) { console.error('ERROR', e.message); }

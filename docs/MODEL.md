@@ -43,6 +43,57 @@ fall, or arrive less fractured. Sect. 4 of the paper examines when a panel stays
 offers break-up at a fraction of the impact angle, and an unbroken panel, for sensitivity studies. Neither option is
 used in the campaigns.
 
+## Checks of the rigid phase (Sect. 3)
+
+For a wall in total collapse the rigid phase is compared with the closed form of a rectangle pivoting from rest about
+a corner. With φ the angle of the line from the toe to the centroid, measured from the vertical (φ0 = δ), the toe
+reactions per unit weight are
+
+    T / mg = 0.75 sin φ cos φ − 1.5 (cos φ0 − cos φ) sin φ
+    N / mg = 1 − 0.75 sin² φ − 1.5 (cos φ0 − cos φ) cos φ
+
+and the toe slips at the first rotation at which |T| = μN, at θ = φ + atan(t/Hr). The program reports for each wall:
+
+- the slip angle of the code and of the closed form;
+- the energy drift in the regimes without friction, relative to m g Hr / 2;
+- the relative change of the landing velocities when the step is halved (h = 5·10⁻⁵ s);
+- the energy balance of the slide regime, with the work of friction integrated by the trapezoidal rule.
+
+The two-block code of the next section is tested in three cases:
+
+- V1, one body with the toe contact rules, which must reproduce the rigid phase;
+- V2, two pinned blocks in free flight for 2 s, which keep their energy, momentum and angular momentum;
+- V3, two thin rods hinged together, against Lagrange's equations written by hand.
+
+The internal actions are tested on a thin rod turning about its base, whose bending moment is known in closed form.
+
+## Integrity of the panel during the fall (Sect. 4)
+
+The model keeps the panel rigid until its first impact. This analysis checks that assumption for any wall in total
+collapse. At rotations every 0.25° up to the landing, the force and the moment that each section across the panel
+(s/H = 0.02, 0.04, … 0.98) must carry are computed. They are the actions that keep the part above the section in the
+rigid motion, with the accelerations of the model's own equations. With N the axial force, M the moment and t the
+thickness, per unit length of façade:
+
+| criterion | the section holds while |
+|---|---|
+| no tension | N ≥ 0 and \|M\| ≤ N t/2 |
+| elastic cracking, tensile strength f_t | N ≥ −f_t t and \|M\| ≤ max(N t/2, N t/6 + f_t t²/6) |
+| rigid-plastic, tensile strength f_t | N ≥ −f_t t and \|M\| ≤ (N + f_t t) t/2 |
+| bed joint, sliding (reported only) | \|V\| ≤ μ N |
+
+Where the no-tension criterion first fails, the panel is split into two blocks joined at that section by a frictional
+hinge. Their motion is integrated with the same contact rules as the rigid phase until one of these events:
+
+- the lower block reaches its own limit (a second section fails);
+- the joint slides;
+- the panel lands.
+
+The motion is also followed checking the upper block alone. With a tensile strength the two forms of the criterion are
+applied in turn. For the walls that reach the ground in at most two blocks, P95 and Lmax at break-up are compared
+with those of the rigid panel. The analysis uses the wall's own blocks, diatone courses, friction and density. A
+partial collapse is not analysed: its panel pivots on the wall below it, which this analysis does not model.
+
 ## Debris phase (Sect. 2)
 
 The blocks are handed to planck.js 1.5.0, a JavaScript port of Box2D. Settings:
