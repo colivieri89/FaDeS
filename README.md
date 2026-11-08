@@ -1,5 +1,7 @@
 # FaDeS – Façade Debris Simulator
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24046462.svg)](https://doi.org/10.5281/zenodo.24046462)
+
 FaDeS simulates the out-of-plane overturning of a masonry façade and the debris it leaves on the street. It is a
 two-dimensional rigid-block model:
 
@@ -183,7 +185,9 @@ The program ships no field data. Documented collapses can be loaded from a CSV f
 ## Citation
 
 If you use FaDeS, please cite the paper (the full reference will be added on publication). The software itself is
-cited from `CITATION.cff` (on GitHub: *Cite this repository*).
+cited from `CITATION.cff` (on GitHub: *Cite this repository*). Every release is archived on Zenodo. The DOI
+[10.5281/zenodo.24046462](https://doi.org/10.5281/zenodo.24046462) refers to all versions and resolves to the latest
+one.
 
 ## Licence
 

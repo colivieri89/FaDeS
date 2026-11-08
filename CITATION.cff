@@ -4,6 +4,7 @@ type: software
 title: "FaDeS – Façade Debris Simulator: rigid-block simulation of the overturning of masonry façades and of their debris"
 version: 1.0.0
 license: MIT
+doi: 10.5281/zenodo.24046462
 repository-code: "https://github.com/colivieri89/FaDeS"
 authors:
   - family-names: Olivieri
