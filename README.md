@@ -15,23 +15,25 @@ for a street of given width, how much of the street stays free.
 
 FaDeS is the simulator of the paper *Simulating the debris of overturning masonry façades with rigid blocks: from the
 falling panel to the documented collapses* (C. Olivieri, G. Vaiano, L. Sibille, G. Mochi, F. Fabbrocino), and it
-reproduces the paper's analyses.
+makes the paper's analyses for any wall. It carries four worked examples, one wall of each type analysed in the paper,
+with the paper's results for them.
 
 ![Single wall](docs/screenshots/2_single_wall.png)
 
 ## What it does
 
-- **Single wall.** Any façade, of your own size, blocks and materials, or one from the paper's campaigns. You can
+- **Single wall.** Any façade, of your own size, blocks and materials, or one of the worked examples. You can
   watch it fall. The program measures P95 by mass and Lmax and plots the cumulative mass and the profile of the debris.
   With a street width it also gives the width left free.
 - **Parametric study.** Many walls, each with many seeds. The walls can be:
   - a grid of heights and thicknesses with shared blocks and materials;
   - a CSV file with one wall per row (your own buildings);
-  - the configurations of the paper's campaigns.
+  - the worked examples.
 
-  For each wall it gives the extent at break-up and at rest, as seed medians and ranges. With a street width it adds
-  the width left free, the number of seeds whose debris reaches the far side, and the height of the debris there.
-- **Rigid phase (Section 3 of the paper).** For up to five walls of any size and friction, the overturning phase is
+  For each wall it gives the extent at break-up and at rest, as seed medians and ranges, and the increment that the
+  debris phase adds, against the slenderness of the wall (as Fig. 7 of the paper). With a street width it adds the
+  width left free, the number of seeds whose debris reaches the far side, and the height of the debris there.
+- **Rigid-phase check (Section 3 of the paper).** For up to five walls of any size and friction, the overturning phase is
   checked against the closed form of a rectangle pivoting about its toe:
   - the angle at which the toe slips;
   - the energy drift;
@@ -44,13 +46,10 @@ reproduces the paper's analyses.
   - the first hinge with no tensile strength, and the two-block motion that follows it;
   - the check at any tensile strengths, in its elastic and rigid-plastic forms.
 
-  The walls are the paper's campaigns, a grid or a CSV file, with their own blocks, friction and density.
-- **Total collapse (Section 5, Fig. 7).** The 48 total-collapse configurations of campaigns C1 and C2, 20 seeds each.
+  The walls are the worked examples, a grid or a CSV file, with their own blocks, friction and density.
 
-Until you run anything, the paper's views show the values computed from its stored results. A wall that coincides with
-a configuration of the paper's campaigns is run with exactly the campaign's parameters and compared with the paper's
-stored result. Partial collapse (Section 6), the documented collapses (Section 7) and the convergence tests
-(Appendix A) are in preparation.
+The convergence test of partial collapse (Section 6), the documented collapses (Section 7) and the convergence tests
+of Appendix A are in preparation.
 
 Results are exported as CSV or JSON, and charts as SVG or PNG.
 
@@ -58,9 +57,26 @@ Results are exported as CSV or JSON, and charts as SVG or PNG.
 
 ![Integrity in the fall](docs/screenshots/9_integrity.png)
 
+## Worked examples
+
+One wall of each type analysed in the paper, each with the default materials (μ = μg = 0.75, ρ = 1900 kg/m³, e = 0.02,
+diatone courses every 2 m) and with the paper's results for it:
+
+| example | wall | analyses | the paper's results |
+|---|---|---|---|
+| total collapse, small blocks | H 10 m, t 0.60 m, blocks 0.15 × 0.15 m | all four | 20 runs, break-up measures, rigid-phase checks, integrity |
+| total collapse, large blocks | H 5 m, t 1.20 m, blocks 0.40 × 0.20 m | all four | 20 runs, break-up measures, rigid-phase checks, integrity |
+| partial collapse, top two thirds | H 9 m, Hr 6 m, t 0.60 m, blocks 0.15 × 0.15 m | single wall, study | 20 runs |
+| partial collapse, top third | H 12 m, Hr 4 m, t 0.30 m, blocks 0.15 × 0.15 m | single wall, study | 20 runs |
+
+They can be opened from the Overview in each analysis, which shows the paper's results until you run it. A run of an
+example with the default variability and a seed from 1 to 20 is compared with the paper's run of that seed. Change
+any parameter and the wall becomes your own. The examples are in `examples/`: `paper_results.json` (the walls and
+the paper's results) and `walls.csv` (the walls, in the CSV format of the parametric study).
+
 ## Input
 
-Every parameter can be changed. The defaults are the values of the paper's campaigns.
+Every parameter can be changed. The defaults are the values of the paper.
 
 | parameter | meaning | default |
 |---|---|---|
@@ -129,19 +145,20 @@ node src/cli/cli.js study --H 6,9,12 --t 0.45,0.60 --seeds 1-20 --W 6
 # your own walls, one per row of a CSV file
 node src/cli/cli.js study --walls my_walls.csv --seeds 1-20
 
-# the rigid phase (Sect. 3): the paper's five walls, or walls of your own (one thickness per height)
+# the worked examples and the paper's results for them; all of them run as a study, compared with the paper
+node src/cli/cli.js examples
+node src/cli/cli.js study --examples
+node src/cli/cli.js run --example partial-upper-third --seed 7
+
+# the rigid phase (Sect. 3): the examples in total collapse, or walls of your own (one thickness per height)
 node src/cli/cli.js rigid
 node src/cli/cli.js rigid --H 8,4 --t 0.50,0.80 --mu 0.6
 
-# integrity in the fall (Sect. 4): the paper's walls, a grid with its own materials and tensile strengths, or a CSV file
-node src/cli/cli.js integrity --stored                                 # the paper's values, from its stored results
-node src/cli/cli.js integrity                                          # the 48 walls of C1-C2, compared with the paper
+# integrity in the fall (Sect. 4): the examples, a grid with its own materials and tensile strengths, or a CSV file
+node src/cli/cli.js integrity --stored                                 # the paper's results for the examples
+node src/cli/cli.js integrity                                          # the examples, compared with the paper
 node src/cli/cli.js integrity --H 6,9 --t 0.45 --mu 0.6 --rho 1700 --ft 0.05,0.2
 node src/cli/cli.js integrity --walls my_walls.csv
-
-# total collapse (Sect. 5)
-node src/cli/cli.js paper                                              # the values from the stored runs
-node src/cli/cli.js total --campaigns C1 --heights 5,10 --seeds 1-20   # part of the study
 
 node src/cli/cli.js --help
 ```
@@ -150,8 +167,8 @@ Every finished run is stored as soon as it ends, so a stopped study resumes wher
 
 ## Walls from a CSV file
 
-One wall per row, comma or semicolon separated. A template with two example walls is in
-`reference/walls_template.csv`.
+One wall per row, comma or semicolon separated. A template with two walls that use every column is in
+`examples/walls_template.csv`.
 
 | column | meaning |
 |---|---|
@@ -164,7 +181,7 @@ One wall per row, comma or semicolon separated. A template with two example wall
 | `mu`, `muG`, `e`, `rho` | friction, restitution, density (optional) |
 | `W_m` | street width, m (optional) |
 
-Empty optional cells take the values of the paper's campaigns. The same file can be used by the integrity analysis,
+Empty optional cells take the default values. The same file can be used by the integrity analysis,
 which takes its walls in total collapse.
 
 ## Building the installers
@@ -175,26 +192,29 @@ npm run dist:win    # dist/*.exe (on Windows)
 ```
 
 The tests run on Linux, Windows and macOS at every push (`.github/workflows/tests.yml`). The installers are built by
-`.github/workflows/build.yml`. It is started by hand from the Actions tab, or by a tag such as `v1.0.0`, which also
+`.github/workflows/build.yml`. It is started by hand from the Actions tab, or by a tag such as `v1.1.0`, which also
 publishes the installers as a release.
 
 ## Agreement with the paper
 
-The paper's 1920 runs (campaigns C1–C4, seeds 1–20) are stored in `reference/`, with the results of its checks of
-the rigid phase and of the integrity of the 48 walls of C1–C2. Runs made with the program use the same code,
-parameters and random draws.
+The worked examples carry the paper's results for them: the 80 runs of their seeds 1–20 and, for the two walls in
+total collapse, the break-up measures, the checks of the rigid phase and the integrity of the falling panel. Runs of
+the examples made with the program use the same code, parameters and random draws.
 
 Agreement to the last bit cannot be guaranteed on every computer. The trajectory of thousands of contacts depends on
 the last bit of `sin`, `cos`, `atan2` and `log`, and these are not rounded identically by every JavaScript runtime and
 processor. The program therefore carries its own implementation of these functions, so that every computer gives the
-same result. Against the paper:
+same result. Against the paper's results for the examples:
 
-- most runs are identical;
-- in the others, P95 differs by less than 0.1 % and Lmax by less than 0.5 %;
-- the checks of the rigid phase and of the integrity of the panel agree within 10⁻¹² (relative), with every count
-  of the paper unchanged.
+- in 78 of the 80 runs, P95 and Lmax are within 0.1 % of the paper's;
+- in the other two, a difference in the last digits grows through the contacts to 1.9 % and 2.9 % in P95 (0.1 % and
+  1.4 % in Lmax);
+- the seed medians of P95 and Lmax differ by at most 0.2 %;
+- the break-up measures, the checks of the rigid phase and the integrity of the panel agree within 10⁻¹² (relative),
+  with every result of the paper unchanged.
 
-On Apple Silicon with Node.js 24, the command line with `--native-math` reproduces the stored results bit for bit.
+On Apple Silicon with Node.js 24, the command line with `--native-math` reproduces the paper's results for the
+examples bit for bit.
 
 ## Data
 
@@ -205,11 +225,11 @@ The program ships no field data. Documented collapses can be loaded from a CSV f
 | folder | content |
 |---|---|
 | `src/sim` | the simulator: rigid phase, break-up, debris phase in planck.js, measures, deterministic functions |
-| `src/analyses` | studies of any set of walls, the campaigns of the paper and the summaries of its sections; `integrity/`: the checks of the rigid phase and the integrity of the falling panel |
+| `src/analyses` | walls and their defaults, studies of any set of walls, the worked examples; `integrity/`: the checks of the rigid phase and the integrity of the falling panel |
 | `src/runner` | parallel and resumable execution on worker threads |
 | `src/main`, `src/renderer` | the desktop interface (Electron) |
 | `src/cli` | the command line |
-| `reference` | the stored results of the paper, the template of the CSV file of walls |
+| `examples` | the worked examples with the paper's results for them, the template of the CSV file of walls |
 | `test` | tests |
 
 ## Citation

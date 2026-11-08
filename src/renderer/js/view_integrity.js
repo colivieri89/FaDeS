@@ -1,12 +1,12 @@
 'use strict';
-// Sect. 4 of the paper, integrity of the panel during the fall (Figs. 5 and 6), for the paper's walls or any others in
-// total collapse: the internal actions of the falling panel, the first hinge with no tensile strength, the two-block
-// motion from it, and the check at given tensile strengths. Shows the paper's values from its stored results until the
-// study is run.
+// Sect. 4 of the paper, integrity of the panel during the fall (Figs. 5 and 6), for any wall in total collapse: the
+// internal actions of the falling panel, the first hinge with no tensile strength, the two-block motion from it, and
+// the check at given tensile strengths. Shows the paper's results for the worked examples in total collapse until the
+// analysis is run.
 (function (FD) {
   const { h, fmt } = FD;
   const S = {
-    source: 'campaigns', campaigns: ['C1', 'C2'],
+    source: 'examples', examples: null,
     grid: { heightsText: '6, 9, 12', thicknessesText: '0.45, 0.60', bx: 0.15, by: 0.15, diatoneStep: 2, mu: null, muG: null, rho: null },
     csv: { walls: [], name: '', nPartial: 0 }, ftText: '0.04, 0.10',
     workers: null, paper: null, summary: null, computed: false, running: null, progress: null, error: null, cancelled: false,
@@ -20,28 +20,31 @@
     return [...new Set(v)].sort((a, b) => a - b);
   };
   function studyOptions() {
-    const o = { fts: numList(S.ftText, 'Tensile strengths', true), campaigns: [], walls: [] };
+    const o = { fts: numList(S.ftText, 'Tensile strengths', true), examples: [], walls: [] };
     if (S.source === 'grid') {
-      const g = S.grid, pp = info.paperParams;
+      const g = S.grid, pp = info.materials;
       o.grid = { heights: numList(g.heightsText, 'Heights'), thicknesses: numList(g.thicknessesText, 'Thicknesses'), bx: +g.bx, by: +g.by,
         diatoneStep: +g.diatoneStep, mu: +(g.mu ?? pp.mu), muG: +(g.muG ?? pp.muG), rho: +(g.rho ?? pp.rho) };
     } else if (S.source === 'csv') {
       if (!S.csv.walls.length) throw new Error('load a CSV file of walls first');
       o.walls = S.csv.walls;
-    } else o.campaigns = S.campaigns;
+    } else o.examples = S.examples;
     return o;
   }
 
   FD.views.integrity = {
     title: 'Integrity during the fall',
-    async render(root, inf) {
+    async render(root, inf, go, opts = {}) {
       info = inf;
       if (S.workers == null) S.workers = info.defaultWorkers;
+      const totals = info.examples.filter(x => x.wall.mechanism === 'total').map(x => x.id);
+      if (!S.examples) S.examples = totals.slice();
+      if (opts.example && totals.includes(opts.example) && !S.running) { S.source = 'examples'; S.examples = [opts.example]; S.traceId = opts.example; }
       els = {};
       root.append(
-        h('div', { class: 'kicker' }, 'Paper · Section 4 · Figs. 5–6'),
+        h('div', { class: 'kicker' }, 'Analysis · integrity in the fall · Section 4 of the paper'),
         h('h1', {}, 'Integrity of the panel during the fall'),
-        h('p', { class: 'lede' }, 'The model keeps the façade rigid until its first impact. Here that assumption is checked. While the panel turns, every section across it must carry the force and the moment that keep the part above it in the rigid motion. With no tensile strength a section opens as soon as the resultant leaves it; the panel then turns in two blocks, and the lower block is followed until it reaches its own limit. With a tensile strength the elastic and the rigid-plastic forms of the check are both applied. The analysis works for any wall in total collapse, with its own blocks, friction and density; the defaults are the walls of the paper.'),
+        h('p', { class: 'lede' }, 'The model keeps the façade rigid until its first impact. Here that assumption is checked. While the panel turns, every section across it must carry the force and the moment that keep the part above it in the rigid motion. With no tensile strength a section opens as soon as the resultant leaves it; the panel then turns in two blocks, and the lower block is followed until it reaches its own limit. With a tensile strength the elastic and the rigid-plastic forms of the check are both applied. The analysis works for any wall in total collapse, with its own blocks, friction and density; the defaults are the worked examples in total collapse, whose results in the paper are shown until the analysis is run.'),
         inputs(),
         els.status = h('div'),
         els.tiles = h('div', { class: 'tiles' }),
@@ -69,7 +72,7 @@
             h('button', { class: 'btn ghost', onclick: () => exportCSV() }, FD.icon('download'), 'CSV'),
             h('button', { class: 'btn ghost', onclick: () => exportJSON() }, FD.icon('download'), 'JSON')),
           els.table = h('div')));
-      if (!S.paper) S.paper = await window.api.paperSummary('integrity', {});
+      if (!S.paper) S.paper = await window.api.exampleSummary('integrity');
       if (!S.summary) { S.summary = S.paper; S.computed = false; }
       showSource(); refreshEstimate(); renderStatus(); renderResults();
       FD.onTheme(() => { ['ca', 'cb', 'cc', 'c6'].forEach(k => els[k] && els[k].draw()); }, 'integrity');
@@ -96,7 +99,7 @@
     h('input', { class: 'txt', value, oninput: (e) => { oninput(e.target.value); refreshEstimate(); } }));
 
   function inputs() {
-    const g = S.grid, pp = info.paperParams;
+    const g = S.grid, pp = info.materials;
     els.grid = h('div', { class: 'form-grid' },
       textField('Heights H', 'm, comma separated', g.heightsText, (v) => { g.heightsText = v; }),
       textField('Thicknesses t', 'm, comma separated', g.thicknessesText, (v) => { g.thicknessesText = v; }),
@@ -112,24 +115,25 @@
       h('div', { class: 'row' }, h('button', { class: 'btn ghost', onclick: () => file.click() }, FD.icon('folder'), 'Load CSV…'), file, els.csvLab,
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost sm', onclick: async () => FD.saveText('walls_template.csv', await window.api.wallsTemplate(), 'csv') }, FD.icon('download'), 'Template')),
       h('p', { class: 'muted small' }, 'The file of the parametric study. Only the walls in total collapse (mechanism T) are analysed: a partial collapse pivots on the wall below it, which this analysis does not model. Used columns: id, H_m, t_m, bx_m, by_m, diatone_step_m, mu, muG, rho.'));
-    els.camp = h('div', {}, h('div', { class: 'chips' }, ['C1', 'C2'].map(id => h('button', { type: 'button', class: 'chip' + (S.campaigns.includes(id) ? ' on' : ''),
-      onclick: (e) => { const i = S.campaigns.indexOf(id); if (i >= 0) { if (S.campaigns.length > 1) S.campaigns.splice(i, 1); } else S.campaigns.push(id);
-        S.campaigns.sort(); e.currentTarget.classList.toggle('on', S.campaigns.includes(id)); refreshEstimate(); } }, info.campaigns.find(c => c.id === id).label))),
-      h('p', { class: 'muted small' }, 'The 48 total-collapse walls of the paper’s campaigns, compared wall by wall with the paper’s stored results. (The paper also includes 7 documented walls, whose data are not distributed.)'));
+    const exs = info.examples.filter(x => x.wall.mechanism === 'total'), ids = exs.map(x => x.id);
+    els.camp = h('div', {}, h('div', { class: 'chips' }, exs.map(x => h('button', { type: 'button', class: 'chip' + (S.examples.includes(x.id) ? ' on' : ''),
+      onclick: (e) => { const i = S.examples.indexOf(x.id); if (i >= 0) { if (S.examples.length > 1) S.examples.splice(i, 1); } else S.examples.push(x.id);
+        S.examples.sort((a, b) => ids.indexOf(a) - ids.indexOf(b)); e.currentTarget.classList.toggle('on', S.examples.includes(x.id)); refreshEstimate(); } }, x.title))),
+      h('p', { class: 'muted small' }, 'The worked examples in total collapse, compared with the paper’s results for them.'));
     const wk = h('input', { type: 'range', min: 1, max: info.cores, value: S.workers, oninput: (e) => { S.workers = +e.target.value; wkLab.textContent = S.workers; refreshEstimate(); } });
     const wkLab = h('b', { class: 'num' }, S.workers);
     els.runBtn = h('button', { class: 'btn', onclick: () => (S.running ? stop() : start()) });
     els.estimate = h('span', { class: 'muted small' });
     return h('div', { class: 'card' },
       h('div', { class: 'filters' },
-        h('span', { class: 'lab' }, 'Walls'), seg([['campaigns', 'Paper campaigns'], ['grid', 'Grid of H and t'], ['csv', 'From a CSV file']], S.source, (v) => { S.source = v; showSource(); refreshEstimate(); }),
+        h('span', { class: 'lab' }, 'Walls'), seg([['examples', 'Worked examples'], ['grid', 'Grid of H and t'], ['csv', 'From a CSV file']], S.source, (v) => { S.source = v; showSource(); refreshEstimate(); }),
         h('span', {}), h('div', {}, els.camp, els.grid, els.csv),
         h('span', { class: 'lab' }, 'Tensile strength'), h('div', { class: 'row' },
           h('input', { class: 'txt', value: S.ftText, style: 'width:160px', oninput: (e) => { S.ftText = e.target.value; refreshEstimate(); } }),
-          h('span', { class: 'muted small' }, 'MPa, comma separated; the analysis with no tensile strength is always made. The paper uses 0.04 and 0.10')),
+          h('span', { class: 'muted small' }, 'MPa, comma separated; the analysis with no tensile strength is always made. The paper and its examples use 0.04 and 0.10')),
         h('span', { class: 'lab' }, 'Parallel runs'), h('div', { class: 'row' }, wk, wkLab, h('span', { class: 'muted small' }, `of ${info.cores} cores`))),
       h('div', { class: 'row', style: 'margin-top:18px' }, els.runBtn, h('div', { class: 'spacer' }),
-        h('button', { class: 'btn ghost', title: 'Show the values of the paper (stored results)', onclick: () => { S.summary = S.paper; S.computed = false; renderResults(); } }, 'Paper values'),
+        h('button', { class: 'btn ghost', title: 'Show the paper’s results for the examples', onclick: () => { S.summary = S.paper; S.computed = false; renderResults(); } }, 'Paper results'),
         h('button', { class: 'btn ghost', title: 'Open the folder where the results of this computer are stored', onclick: () => window.api.openPath(info.resultsDir) }, FD.icon('folder'), 'Results folder'),
         h('button', { class: 'btn ghost', title: 'Delete the stored results of this view (they are recomputed at the next run)',
           onclick: async () => { if (S.running) return; if (!confirm('Delete the results stored on this computer for the integrity analysis?')) return; await window.api.clearResults('integrity'); FD.toast('Stored results deleted'); } }, 'Clear stored results')),
@@ -138,7 +142,7 @@
   function showSource() {
     els.grid.style.display = S.source === 'grid' ? '' : 'none';
     els.csv.style.display = S.source === 'csv' ? '' : 'none';
-    els.camp.style.display = S.source === 'campaigns' ? '' : 'none';
+    els.camp.style.display = S.source === 'examples' ? '' : 'none';
   }
   const csvLabel = () => `${S.csv.name}: ${S.csv.walls.length} wall${S.csv.walls.length === 1 ? '' : 's'} in total collapse` + (S.csv.nPartial ? `, ${S.csv.nPartial} partial collapse${S.csv.nPartial === 1 ? '' : 's'} left out` : '');
   async function loadCSV(f) {
@@ -206,7 +210,8 @@
   const rng = (a, d = 2, unit = '') => !a || !Number.isFinite(a[0]) ? '–' : (fmt(a[0], d) === fmt(a[1], d) ? fmt(a[0], d) : `${fmt(a[0], d)}–${fmt(a[1], d)}`) + unit;
   const ftName = (k) => `${k.replace('MPa', '')} MPa`;
   const run0 = (r) => (r.fc && r.fc['0']) || {};
-  const wallName = (r) => r.campaign ? `${r.campaign} · H ${r.H} m · t ${fmt(r.t, 2)} m` : `${r.id} · H ${r.H} m · t ${fmt(r.t, 2)} m`;
+  const exTitle = (id) => { const x = info.examples.find(e => e.id === id); return x ? x.title : id; };
+  const wallName = (r) => `${r.example ? exTitle(r.example) : r.id} · H ${r.H} m · t ${fmt(r.t, 2)} m`;
 
   function renderResults() {
     if (!els.tiles) return;
@@ -220,7 +225,7 @@
     ];
     for (const k of keys) tiles.push(FD.tile(`f_t = ${ftName(k)}, intact at landing`, `${T.survElastic[k]} / ${T.survPlastic[k]}`, 'elastic / rigid-plastic form'));
     if (S.computed && T.nCompared) tiles.push(FD.tile('Agreement with the paper', `${T.nIdentical} / ${T.nCompared}`,
-      T.nIdentical === T.nCompared ? 'walls identical to the stored results' : `walls identical; the others differ by at most ${T.maxRelDiff < 1e-6 ? T.maxRelDiff.toExponential(0) : fmt(100 * T.maxRelDiff, 3) + ' %'} (rounding)`));
+      T.nIdentical === T.nCompared ? 'examples identical to the paper’s results' : `walls identical; the others differ by at most ${T.maxRelDiff < 1e-6 ? T.maxRelDiff.toExponential(0) : fmt(100 * T.maxRelDiff, 3) + ' %'} (rounding)`));
     els.tiles.replaceChildren(...tiles);
     renderTraceSelect(R);
     renderFig5bc(R);
@@ -232,8 +237,8 @@
   // (a): one wall, computed on request in a worker (about 10-20 s)
   function renderTraceSelect(R) {
     const ok = R.filter(r => r.firstViolation && run0(r).end === 'hingeB1');
-    const prev = S.traceId && ok.some(r => r.id === S.traceId) ? S.traceId : (ok.find(r => r.id === 'C1_H10_t0.60') || ok[0] || {}).id;
-    els.traceSel.replaceChildren(...ok.map(r => h('option', { value: r.id, selected: r.id === prev ? true : null }, `${r.id}  (t/H ${fmt(r.t / r.H, 3)})`)));
+    const prev = S.traceId && ok.some(r => r.id === S.traceId) ? S.traceId : (ok[0] || {}).id;
+    els.traceSel.replaceChildren(...ok.map(r => h('option', { value: r.id, selected: r.id === prev ? true : null }, `${r.example ? exTitle(r.example) : r.id}  (t/H ${fmt(r.t / r.H, 3)})`)));
     els.traceSel.disabled = !ok.length;
     if (!ok.length) { els.traceNote.textContent = 'no wall whose lower block reaches its limit'; return; }
     if (prev !== S.traceId || !els.ca) drawTrace(prev);
@@ -337,7 +342,7 @@
   }
 
   function renderTable(sm) {
-    els.tableSub.textContent = S.computed ? 'Computed on this computer.' : 'Values of the paper, from its stored results (nothing has been run on this computer yet).';
+    els.tableSub.textContent = S.computed ? 'Computed on this computer.' : 'The paper’s results for the examples (nothing has been run on this computer yet).';
     const th = (x) => x ? `${fmt(x.theta, 1)}°` : 'intact';
     const cols = [
       { label: 'Wall', get: (r) => r.id, csv: (r) => r.id },
@@ -361,6 +366,6 @@
     els.table.replaceChildren(FD.table(sm.rows, cols));
   }
 
-  function exportCSV() { FD.saveText(S.computed ? 'integrity.csv' : 'integrity_paper.csv', FD.toCSV(S.summary.rows, els.cols), 'csv'); }
-  function exportJSON() { FD.saveText(S.computed ? 'integrity.json' : 'integrity_paper.json', JSON.stringify(S.summary, null, 1), 'json'); }
+  function exportCSV() { FD.saveText(S.computed ? 'integrity.csv' : 'integrity_paper_examples.csv', FD.toCSV(S.summary.rows, els.cols), 'csv'); }
+  function exportJSON() { FD.saveText(S.computed ? 'integrity.json' : 'integrity_paper_examples.json', JSON.stringify(S.summary, null, 1), 'json'); }
 })(window.FD);

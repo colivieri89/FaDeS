@@ -7,11 +7,8 @@
     { group: 'Analyses', items: [
       { view: 'single', icon: 'wall', label: 'Single wall' },
       { view: 'study', icon: 'chart', label: 'Parametric study' },
-    ] },
-    { group: 'Paper', items: [
-      { view: 'rigid', sec: '3', label: 'Rigid phase' },
-      { view: 'integrity', sec: '4', label: 'Integrity in the fall' },
-      { view: 'total', sec: '5', label: 'Total collapse' },
+      { view: 'rigid', icon: 'check', label: 'Rigid-phase check' },
+      { view: 'integrity', icon: 'split', label: 'Integrity in the fall' },
     ] },
     { group: null, items: [{ view: 'about', sec: null, icon: 'info', label: 'About' }] },
   ];
@@ -31,7 +28,8 @@
     }
   }
 
-  async function go(view) {
+  // opts.example: open the view with a worked example loaded
+  async function go(view, opts = {}) {
     const prev = FD.current && FD.views[FD.current];
     if (prev && prev.leave) prev.leave();
     FD.clearTheme();
@@ -40,7 +38,7 @@
     const root = document.getElementById('view');
     root.replaceChildren();
     document.getElementById('main').scrollTop = 0;
-    try { await FD.views[view].render(root, info, go); }
+    try { await FD.views[view].render(root, info, go, opts); }
     catch (e) { root.append(h('div', { class: 'card' }, h('h2', {}, 'Something went wrong'), h('pre', { class: 'small' }, String(e && e.stack || e)))); }
   }
 

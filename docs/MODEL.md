@@ -2,7 +2,7 @@
 
 This file describes what FaDeS computes for a wall. The paper gives the reasons for each choice, the verification, and
 the results. Section numbers below are those of the paper. Every parameter below can be set for any wall, in the
-interface and on the command line; the defaults are the values of the paper's campaigns.
+interface and on the command line; the defaults are the values of the paper.
 
 ## Frame and geometry
 
@@ -41,7 +41,7 @@ own centroid: translation plus rotation, the rigid velocity field. The blocks st
 Breaking up at the first impact is the main assumption of the model. A real panel can break earlier, during the
 fall, or arrive less fractured. Sect. 4 of the paper examines when a panel stays whole during the fall. The code also
 offers break-up at a fraction of the impact angle, and an unbroken panel, for sensitivity studies. Neither option is
-used in the campaigns.
+used in the paper.
 
 ## Checks of the rigid phase (Sect. 3)
 
@@ -170,11 +170,11 @@ does not.
 The program carries its own implementation of these six functions, `src/sim/detmath.js`. It is a translation of fdlibm,
 the library that V8 also uses. The program installs it in every worker thread, so all computers give the same bits.
 `test/determinism.test.js` checks this against stored values. The paper's runs used the native functions of Node.js
-24 on Apple Silicon. Compared with them:
+24 on Apple Silicon. Compared with its 80 runs of the worked examples (`examples/`):
 
-- most runs are identical;
-- in the others, P95 differs by less than 0.1 % and Lmax by less than 0.5 % (largest differences found: 0.08 % and
-  0.34 %, in a sample of runs from all four campaigns);
+- in 78 runs, P95 and Lmax are within 0.1 % of the paper's;
+- in the other two, a difference in the last digits grows through the contacts to 1.9 % and 2.9 % in P95 (0.1 % and
+  1.4 % in Lmax); the seed medians differ by at most 0.2 %;
 - the break-up measures agree to 10⁻¹⁵.
 
 To repeat the paper bit for bit on Apple Silicon with Node.js 24, run the command line with `--native-math`.
@@ -182,7 +182,7 @@ To repeat the paper bit for bit on Apple Silicon with Node.js 24, run the comman
 
 ## Options not used in the paper
 
-The code contains some options that no campaign of the paper uses. They are kept for further study and are not
+The code contains some options that the paper does not use. They are kept for further study and are not
 reachable from the interface:
 
 - a road sloping away from the façade;

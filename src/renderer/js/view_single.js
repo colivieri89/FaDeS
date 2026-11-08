@@ -2,14 +2,9 @@
 // Single wall: one run with its animation, the extent at rest (Fig. 3 of the paper) and the debris profile.
 (function (FD) {
   const { h, fmt } = FD;
-  const PRESETS = [
-    { name: 'C1 · H 10 m · t 0.60 m', mech: 'total', H: 10, t: 0.60, bx: 0.15, by: 0.15 },
-    { name: 'C1 · H 5 m · t 0.30 m', mech: 'total', H: 5, t: 0.30, bx: 0.15, by: 0.15 },
-    { name: 'C1 · H 15 m · t 1.20 m', mech: 'total', H: 15, t: 1.20, bx: 0.15, by: 0.15 },
-    { name: 'C2 · H 7.5 m · t 0.90 m', mech: 'total', H: 7.5, t: 0.90, bx: 0.40, by: 0.20 },
-    { name: 'C3 · H 9 m · Hr = 2/3 H · t 0.60 m', mech: 'partial', H: 9, Hr: 6, t: 0.60, bx: 0.15, by: 0.15 },
-    { name: 'C4 · H 12 m · Hr = 1/3 H · t 0.30 m', mech: 'partial', H: 12, Hr: 4, t: 0.30, bx: 0.15, by: 0.15 },
-  ];
+  // the worked examples: their walls with the default materials and variability
+  const presets = (info) => info.examples.map(x => ({ id: x.id, name: x.title, mech: x.wall.mechanism, H: x.wall.H, Hr: x.wall.Hr, t: x.wall.t,
+    bx: x.wall.bx, by: x.wall.by, dia: x.wall.diatoneStep }));
   const state = { form: null, stage: null, running: null, last: null };
 
   function numberField(id, label, unit, value, step, min, max) {
@@ -22,7 +17,7 @@
   function params(info) {
     const mech = document.querySelector('#mechSeg .on').dataset.v;
     const H = val('f-H'), t = val('f-t');
-    const P = Object.assign({}, info.paperParams, { H, t, mechanism: mech, bx: val('f-bx'), by: val('f-by'),
+    const P = Object.assign({}, info.materials, { H, t, mechanism: mech, bx: val('f-bx'), by: val('f-by'),
       mu: val('f-mu'), muG: val('f-muG'), e: val('f-e'), rho: val('f-rho'), engine: 'planck' });
     P.diatones = val('f-dia') > 0 ? { on: true, step: val('f-dia'), h: 0.20 } : { on: false, step: 2, h: 0.20 };
     if (mech === 'partial') P.Hr = val('f-Hr');
@@ -38,11 +33,16 @@
     if (bad.length) throw new Error(bad.join('; '));
     return P;
   }
-  function applyPreset(p) {
+  // an example: its wall, the default materials and variability (seed unchanged)
+  function applyPreset(p, info) {
+    if (!p) return;
     const set = (id, v) => { document.getElementById(id).value = v; };
-    set('f-H', p.H); set('f-t', p.t.toFixed(2)); set('f-bx', p.bx); set('f-by', p.by);
+    set('f-H', p.H); set('f-t', p.t.toFixed(2)); set('f-bx', p.bx); set('f-by', p.by); set('f-dia', p.dia);
     setSeg('mechSeg', p.mech); if (p.Hr) set('f-Hr', +p.Hr.toFixed(3));
     document.getElementById('hrField').style.display = p.mech === 'partial' ? '' : 'none';
+    const m = info.materials;
+    set('f-mu', m.mu); set('f-muG', m.muG); set('f-e', m.e); set('f-rho', m.rho);
+    setSeg('varSeg', 'paper'); document.getElementById('f-seed').disabled = false; document.getElementById('sdFields').style.display = 'none';
   }
   function setSeg(id, v) { document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
   const seg = (id, options, on, onchange) => h('div', { class: 'seg', id }, options.map(([v, label]) => h('button', { 'data-v': v, class: v === on ? 'on' : '', type: 'button',
@@ -50,10 +50,12 @@
 
   FD.views.single = {
     title: 'Single wall',
-    render(root, info) {
+    render(root, info, go, opts = {}) {
+      const PRESETS = presets(info);
       const form = h('div', { class: 'card sticky' },
-        h('fieldset', {}, h('legend', {}, 'Start from'),
-          h('select', { class: 'txt', id: 'f-preset', onchange: (e) => applyPreset(PRESETS[+e.target.value]) }, PRESETS.map((p, i) => h('option', { value: i }, p.name)))),
+        h('fieldset', {}, h('legend', {}, 'Start from an example'),
+          h('select', { class: 'txt', id: 'f-preset', onchange: (e) => applyPreset(PRESETS[+e.target.value], info) },
+            h('option', { value: '' }, 'Choose an example…'), PRESETS.map((p, i) => h('option', { value: i }, p.name)))),
         h('fieldset', {}, h('legend', {}, 'Geometry'),
           h('div', { style: 'margin:4px 0 8px' }, seg('mechSeg', [['total', 'Total collapse'], ['partial', 'Partial']], 'total', (v) => {
             document.getElementById('hrField').style.display = v === 'partial' ? '' : 'none';
@@ -65,10 +67,10 @@
           numberField('f-by', 'Block height by', 'm', 0.15, 0.05, 0.05, 1),
           numberField('f-dia', 'Diatone courses every', 'm (0 = none)', 2, 0.5, 0, 10)),
         h('fieldset', {}, h('legend', {}, 'Materials'),
-          numberField('f-mu', 'Friction μ, block–block', '', info.paperParams.mu, 0.01, 0.05, 1.5),
-          numberField('f-muG', 'Friction μg, block–street', '', info.paperParams.muG, 0.01, 0.05, 1.5),
-          numberField('f-e', 'Restitution e', '', info.paperParams.e, 0.01, 0, 0.9),
-          numberField('f-rho', 'Density ρ', 'kg/m³', info.paperParams.rho, 50, 500, 3000)),
+          numberField('f-mu', 'Friction μ, block–block', '', info.materials.mu, 0.01, 0.05, 1.5),
+          numberField('f-muG', 'Friction μg, block–street', '', info.materials.muG, 0.01, 0.05, 1.5),
+          numberField('f-e', 'Restitution e', '', info.materials.e, 0.01, 0, 0.9),
+          numberField('f-rho', 'Density ρ', 'kg/m³', info.materials.rho, 50, 500, 3000)),
         h('fieldset', {}, h('legend', {}, 'Street'),
           h('label', { class: 'field' }, h('span', {}, 'Street width W ', h('span', { class: 'unit' }, 'm, optional')),
             h('input', { id: 'f-W', type: 'number', value: '', step: 0.5, min: 0, max: 100, placeholder: 'none',
@@ -82,7 +84,7 @@
             numberField('f-sdTheta', 'Start angle, sd', '°', info.variability.sdThetaDeg, 0.05, 0, 5),
             numberField('f-sdBlock', 'Block joints, sd', '% of the block', info.variability.sdBlockRel * 100, 1, 0, 30),
             numberField('f-sdMu', 'Friction, sd', '%', info.variability.sdMuRel * 100, 1, 0, 30)),
-          numberField('f-seed', 'Seed', 'any integer; 1–20 in the paper', 1, 1, 1, 100000)),
+          numberField('f-seed', 'Seed', 'any integer; 1–20 in the paper and its examples', 1, 1, 1, 100000)),
         h('div', { class: 'row' },
           h('button', { class: 'btn', id: 'simBtn', onclick: () => run(info) }, FD.icon('play'), 'Simulate'),
           h('span', { class: 'muted small', id: 'simNote' }, 'about 1–20 s')));
@@ -100,8 +102,10 @@
       root.append(
         h('div', { class: 'kicker' }, 'Analysis · one wall · Sect. 2 of the paper'),
         h('h1', {}, 'Simulate one façade'),
-        h('p', { class: 'lede' }, 'Any wall: set its height, thickness, blocks and materials, or start from a wall of the paper’s campaigns. The façade overturns rigidly about its outer toe, breaks into its blocks at the first impact (each block takes the velocity of the panel at its centroid), and the debris settles in planck.js. The extent is measured at rest: P95 by mass and the farthest block, Lmax. With a street width, the program shows how much of the street stays free.'),
+        h('p', { class: 'lede' }, 'Any wall: set its height, thickness, blocks and materials, or start from one of the worked examples. The façade overturns rigidly about its outer toe, breaks into its blocks at the first impact (each block takes the velocity of the panel at its centroid), and the debris settles in planck.js. The extent is measured at rest: P95 by mass and the farthest block, Lmax. With a street width, the program shows how much of the street stays free.'),
         h('div', { class: 'layout-single' }, form, h('div', {}, h('div', { class: 'card', style: 'padding:0;overflow:hidden' }, stageWrap, player), out)));
+      const k = PRESETS.findIndex(p => p.id === opts.example);
+      if (k >= 0) { document.getElementById('f-preset').value = String(k); applyPreset(PRESETS[k], info); }
       state.stage = new FD.Stage(stageWrap);
       state.stage.street = streetW();
       state.stage.onTime((st) => {
@@ -165,9 +169,9 @@
     }
     const rel = (a, b) => { const d = Math.abs(a / b - 1) * 100; return d === 0 ? '0' : d < 0.001 ? '< 0.001' : fmt(d, 3); };
     const badge = match
-      ? (match.identical ? h('span', { class: 'badge good' }, `Identical to the paper's run (${match.campaign}, seed ${match.seed})`)
-        : h('span', { class: 'badge info' }, `Paper's run ${match.campaign}, seed ${match.seed}: P95 ${fmt(match.ref.p95m, 3)} m, Lmax ${fmt(match.ref.Lmax, 3)} m; difference ${rel(rec.p.p95.mass, match.ref.p95m)} % and ${rel(rec.Lmax, match.ref.Lmax)} %`))
-      : h('span', { class: 'badge' }, 'Not a configuration of the paper’s campaigns');
+      ? (match.identical ? h('span', { class: 'badge good' }, `Identical to the paper's run of the example (${match.title.toLowerCase()}, seed ${match.seed})`)
+        : h('span', { class: 'badge info' }, `Paper's run of the example (${match.title.toLowerCase()}, seed ${match.seed}): P95 ${fmt(match.ref.p95m, 3)} m, Lmax ${fmt(match.ref.Lmax, 3)} m; difference ${rel(rec.p.p95.mass, match.ref.p95m)} % and ${rel(rec.Lmax, match.ref.Lmax)} %`))
+      : h('span', { class: 'badge' }, 'Your own wall (not one of the worked examples)');
     const cdfPts = result.cdf.map(([x, f]) => ({ x: x / P.H, y: f }));
     cdfPts.unshift({ x: Math.min(0, cdfPts[0].x), y: 0 });
     const cdfChart = h('div');

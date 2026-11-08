@@ -1,7 +1,7 @@
 {
   "name": "fades",
   "productName": "FaDeS",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "FaDeS (Façade Debris Simulator): rigid-block simulation of the out-of-plane overturning of masonry façades and of the debris on the street, for any wall; it also reproduces the analyses of the paper that describes the model.",
   "main": "src/main/main.js",
   "license": "MIT",
@@ -43,11 +43,9 @@
       "package.json",
       "LICENSE",
       "src/**/*",
-      "reference/campaign_runs.json",
-      "reference/breakup_p95.json",
-      "reference/walls_template.csv",
-      "reference/integrity_nominal.json",
-      "reference/rigid_checks.json"
+      "examples/paper_results.json",
+      "examples/walls.csv",
+      "examples/walls_template.csv"
     ],
     "mac": {
       "target": [

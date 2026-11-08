@@ -20,6 +20,7 @@ app.whenReady().then(async () => {
   try {
     await until("document.querySelector('.hero') !== null");
     await wait(9000); await shot('1_overview');
+    await scroll(520); await wait(400); await shot('1b_overview_examples'); await scroll(0);
     await js("document.querySelector('[data-view=single]').click()");
     await wait(500);
     await js("(() => { const w = document.getElementById('f-W'); w.value = '12'; w.dispatchEvent(new Event('input')); })()");
@@ -27,27 +28,17 @@ app.whenReady().then(async () => {
     await until("document.querySelector('#singleOut .tiles') !== null");
     await wait(12000); await shot('2_single_wall');
     await scroll(700); await wait(400); await shot('2b_single_wall_charts'); await scroll(0);
-    await js("document.querySelector('[data-view=total]').click()");
-    await until("document.querySelector('table.data tbody tr') !== null");
-    await wait(800); await shot('3_total_paper');
-    await scroll(800); await wait(400); await shot('3b_total_paper_charts'); await scroll(0);
-    await js("document.querySelector('#themeSwitch [data-t=dark]').click()");
-    await wait(800); await shot('4_total_dark');
-    await js("document.querySelector('#themeSwitch [data-t=light]').click()");
-    // a small study: C1, H 2.5 m, t 0.30 m, seeds 1-2
-    await js(`(() => { const chips = [...document.querySelectorAll('.chip')];
-      const off = (t) => { const c = chips.find(c => c.textContent.trim() === t); if (c && c.classList.contains('on')) c.click(); };
-      off('C2, blocks 0.40 × 0.20 m'); ['5 m','7.5 m','10 m','12.5 m','15 m','0.60 m','0.90 m','1.20 m'].forEach(off);
-      const s = document.querySelector('.filters input.txt'); s.value = '1-2'; s.dispatchEvent(new Event('input')); })()`);
-    await wait(500);
-    await js("[...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Run the study')).click()");
-    await until("document.querySelector('.card b') && [...document.querySelectorAll('.card b')].some(b => b.textContent === 'Done')", 300000);
-    await wait(800); await shot('5_total_run');
-    await scroll(1500); await wait(400); await shot('5b_total_run_table'); await scroll(0);
-    console.log('tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
-    // a parametric study: walls of 4 and 6 m, t 0.45 m, seeds 1-3, street 5 m wide
+    // the parametric study opens with the paper's results for the worked examples
     await js("document.querySelector('[data-view=study]').click()");
-    await wait(800);
+    await until("document.querySelector('table.data tbody tr') !== null");
+    await wait(1200); await shot('3_study_examples');
+    await scroll(900); await wait(400); await shot('3b_study_examples_charts'); await scroll(0);
+    await js("document.querySelector('#themeSwitch [data-t=dark]').click()");
+    await wait(800); await shot('4_study_dark');
+    await js("document.querySelector('#themeSwitch [data-t=light]').click()");
+    // a parametric study: walls of 4 and 6 m, t 0.45 m, seeds 1-3, street 5 m wide
+    await js("[...document.querySelectorAll('.seg button')].find(b => b.textContent === 'Grid of H and t').click()");
+    await wait(500);
     await js(`(() => { const set = (i, v) => { i.value = v; i.dispatchEvent(new Event('input')); };
       const field = (lab) => [...document.querySelectorAll('label.field')].find(l => l.textContent.startsWith(lab)).querySelector('input');
       set(field('Heights H'), '4, 6'); set(field('Thicknesses t'), '0.45');
@@ -57,9 +48,10 @@ app.whenReady().then(async () => {
     await js("[...document.querySelectorAll('.btn')].find(b => b.textContent.includes('Run the study')).click()");
     await until("[...document.querySelectorAll('.card b')].some(b => b.textContent === 'Done')", 300000);
     await wait(800); await scroll(560); await wait(400); await shot('7b_study_results');
-    await scroll(1400); await wait(400); await shot('7c_study_table'); await scroll(0);
+    await scroll(1250); await wait(400); await shot('7c_study_slenderness');
+    await scroll(1900); await wait(400); await shot('7d_study_table'); await scroll(0);
     console.log('study tiles:', await js("[...document.querySelectorAll('.tile')].map(t => t.innerText.replace(/\\n/g, ' | ')).join('  //  ')"));
-    // Sects. 3 and 4 with the paper's stored results; (a) of Fig. 5 is computed when the view opens
+    // Sects. 3 and 4 with the paper's results for the examples; (a) of Fig. 5 is computed when the view opens
     await js("document.querySelector('[data-view=rigid]').click()");
     await until("document.querySelector('table.data tbody tr') !== null");
     await wait(800); await scroll(520); await wait(400); await shot('8_rigid_phase'); await scroll(0);

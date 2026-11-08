@@ -1,12 +1,12 @@
 'use strict';
-// Sect. 3 of the paper, verification of the rigid phase, for the paper's five walls or any others: the slip angle of
-// the code against the closed form of a rectangle pivoting about its toe, the energy drift in the conservative regimes,
-// the landing state with the step halved and the energy balance of the slide regime; then the tests of the two-block
-// code (V1-V3) and of the internal actions (thin rod). Shows the paper's stored values until the checks are run.
+// Sect. 3 of the paper, verification of the rigid phase, for any wall in total collapse: the slip angle of the code
+// against the closed form of a rectangle pivoting about its toe, the energy drift in the conservative regimes, the
+// landing state with the step halved and the energy balance of the slide regime; then the tests of the two-block code
+// (V1-V3) and of the internal actions (thin rod). Shows the paper's results for the worked examples in total collapse
+// until the checks are run.
 (function (FD) {
   const { h, fmt } = FD;
-  const S = { heightsText: '15, 10, 5, 2.5, 12.6', thicknessesText: '0.30, 0.60, 1.20, 1.20, 0.75', mu: 0.75,
-              paper: null, result: null, computed: false, running: false, error: null };
+  const S = { heightsText: null, thicknessesText: null, mu: null, paper: null, result: null, computed: false, running: false, error: null };
   let els = {};
   const COLORS = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5'];
   const MARKERS = ['circle', 'square', 'triangle', 'circle', 'square'];
@@ -29,19 +29,25 @@
   }
 
   FD.views.rigid = {
-    title: 'Rigid phase',
-    async render(root) {
+    title: 'Rigid-phase check',
+    async render(root, info, go, opts = {}) {
       els = {};
+      // the defaults: the examples in total collapse (one of them if the view is opened for it)
+      const cw = info.checkWalls, ex = info.examples.find(x => x.id === opts.example && x.wall.mechanism === 'total');
+      const ws = ex ? [{ H: ex.wall.H, t: ex.wall.t }] : cw;
+      if (S.heightsText == null || ex) {
+        S.heightsText = ws.map(w => String(w.H)).join(', '); S.thicknessesText = ws.map(w => w.t.toFixed(2)).join(', '); S.mu = info.materials.mu;
+      }
       root.append(
-        h('div', { class: 'kicker' }, 'Paper · Section 3'),
+        h('div', { class: 'kicker' }, 'Analysis · rigid phase · Section 3 of the paper'),
         h('h1', {}, 'Verification of the rigid phase'),
-        h('p', { class: 'lede' }, 'Before it breaks up, the façade is a rigid panel turning about its toe, held there by friction until the toe slips. For each wall the program checks its overturning phase against the closed form of a rectangle pivoting from rest about a corner: the angle at which the toe slips, the energy drift while no friction acts, and the landing state when the time step is halved. The energy balance of the slide regime and the tests of the two-block code used in Section 4 complete the verification. Any wall can be checked; the defaults are the five walls of the paper.'),
+        h('p', { class: 'lede' }, 'Before it breaks up, the façade is a rigid panel turning about its toe, held there by friction until the toe slips. For each wall the program checks its overturning phase against the closed form of a rectangle pivoting from rest about a corner: the angle at which the toe slips, the energy drift while no friction acts, and the landing state when the time step is halved. The energy balance of the slide regime and the tests of the two-block code used in the integrity analysis complete the verification. Any wall can be checked; the defaults are the worked examples in total collapse, whose results in the paper are shown until the checks are run.'),
         inputs(),
         els.status = h('div'),
         els.tiles = h('div', { class: 'tiles' }),
         h('div', { class: 'card', style: 'margin-top:16px' },
           h('h2', {}, 'Friction needed at the toe'),
-          h('p', { class: 'sub' }, 'Ratio |T|/N of the toe reactions of the closed form along the fall. The toe slips where the curve reaches the friction μ; the markers are the slip angles of the program. Walls of equal t/H have the same curve (in the paper, H 10 m, t 0.60 m and H 12.6 m, t 0.75 m).'),
+          h('p', { class: 'sub' }, 'Ratio |T|/N of the toe reactions of the closed form along the fall. The toe slips where the curve reaches the friction μ; the markers are the slip angles of the program. Walls of equal t/H have the same curve.'),
           h('div', { class: 'row chart-head' }, els.legend = h('div'), h('div', { class: 'spacer' }), FD.chartActions(() => els.chart, 'rigid_friction_demand')),
           els.chartBox = h('div')),
         h('div', { class: 'card', style: 'margin-top:16px' },
@@ -51,9 +57,9 @@
           els.table = h('div')),
         h('div', { class: 'card', style: 'margin-top:16px' },
           h('h2', {}, 'Tests of the two-block code and of the internal actions'),
-          h('p', { class: 'sub' }, 'The code of Section 4 is the one tested here; these tests do not depend on the walls above.'),
+          h('p', { class: 'sub' }, 'The code of the integrity analysis (Section 4) is the one tested here. V1 is run on the walls above; the other tests do not depend on them.'),
           els.tests = h('div')));
-      if (!S.paper) S.paper = await window.api.paperRigid();
+      if (!S.paper) S.paper = await window.api.exampleRigid();
       if (!S.result) { S.result = S.paper; S.computed = false; }
       renderButton(); renderStatus(); renderResults();
       FD.onTheme(() => { els.chart && els.chart.draw(); }, 'rigid');
@@ -70,9 +76,9 @@
         txt('Heights H', 'm', S.heightsText, (v) => { S.heightsText = v; }),
         txt('Thicknesses t', 'm, one per height', S.thicknessesText, (v) => { S.thicknessesText = v; }),
         h('label', { class: 'field' }, h('span', {}, 'Friction μ at the toe'), h('input', { type: 'number', value: S.mu, step: 0.01, min: 0.05, oninput: (e) => { S.mu = e.target.value; check(); } }))),
-      h('p', { class: 'muted small' }, 'Up to five walls, in total collapse, each from rest at 0.5° past its tipping angle. The paper checks five walls with t/H from 0.02 to 0.48 and μ = 0.75.'),
+      h('p', { class: 'muted small' }, 'Up to five walls, in total collapse, each from rest at 0.5° past its tipping angle. A wall that is a worked example (its H and t, μ = 0.75) is compared with the paper’s results for it.'),
       h('div', { class: 'row', style: 'margin-top:14px' }, els.runBtn, els.check, h('div', { class: 'spacer' }),
-        h('button', { class: 'btn ghost', title: 'Show the values of the paper (stored results)', onclick: () => { S.result = S.paper; S.computed = false; renderResults(); } }, 'Paper values')));
+        h('button', { class: 'btn ghost', title: 'Show the paper’s results for the examples', onclick: () => { S.result = S.paper; S.computed = false; renderResults(); } }, 'Paper results')));
   }
   function check() {
     try { const w = walls(); els.check.textContent = `${w.length} wall${w.length === 1 ? '' : 's'} · about 10 s`; els.runBtn.disabled = S.running; return w; }
@@ -108,14 +114,18 @@
     if (!els.tiles) return;
     const R = S.result, W = R.walls, maxOf = (k, f = Math.abs) => Math.max(...W.map(w => f(w[k])).filter(Number.isFinite));
     const slipW = W.filter(w => w.slipCode != null);
-    const slide = S.computed ? { v: sci(maxOf('slideResidual')), note: `largest residual of the energy balance of the slide regime, ${W.filter(w => w.slides).length} of ${W.length} walls slide` }
-      : { v: sci(R.slide.maxResidual), note: `largest residual, all ${R.slide.nConfigs} configurations of C1–C2 (all slide)` };
+    const slid = W.filter(w => w.slides);
+    const slide = { v: slid.length ? sci(Math.max(...slid.map(w => Math.abs(w.slideResidual)))) : '–', note: `largest residual of the energy balance of the slide regime; ${slid.length} of ${W.length} walls slide` };
+    // a computed wall that is an example, against the paper's slip angle
+    const pw = S.computed ? W.filter(w => w.example && w.slipCode != null).map(w => ({ w, q: S.paper.walls.find(x => x.example === w.example) })).filter(x => x.q) : [];
+    const agree = pw.length ? FD.tile('Agreement with the paper', `${pw.filter(x => x.w.slipCode === x.q.slipCode).length} / ${pw.length}`,
+      `examples with the paper’s slip angle to the last digit; largest difference ${sci(Math.max(...pw.map(x => Math.abs(x.w.slipCode - x.q.slipCode))))}°`) : null;
     els.tiles.replaceChildren(
       FD.tile('Slip angle', slipW.length ? `${fmt(Math.min(...slipW.map(w => w.slipCode)), 1)}–${fmt(Math.max(...slipW.map(w => w.slipCode)), 1)}°` : 'no slip',
         slipW.length ? `program against the closed form: at most ${sci(maxOf('diff'))}°` : 'the toe holds until the landing'),
       FD.tile('Energy drift', sci(maxOf('drift')), 'relative to m g Hr / 2, while no friction acts'),
       FD.tile('Step halved', sci(maxOf('landing')), 'relative change of the landing velocities'),
-      FD.tile('Slide regime', slide.v, slide.note));
+      FD.tile('Slide regime', slide.v, slide.note), ...(agree ? [agree] : []));
 
     // friction demand
     const series = [], mus = [...new Set(W.map(w => +w.mu))];
@@ -131,7 +141,7 @@
       tooltip: (p) => ({ title: name(p.w), rows: [['t / H', fmt(p.w.t / p.w.H, 3)], ['slip, program', `${fmt(p.w.slipCode, 6)}°`], ['slip, closed form', `${fmt(p.w.slipClosedForm, 6)}°`], ['difference', `${sci(p.w.diff)}°`]] }) };
     if (els.chart) els.chart.update(spec); else els.chart = new FD.Chart(els.chartBox, spec);
 
-    els.tableSub.textContent = S.computed ? 'Computed on this computer.' : 'Values of the paper, from its stored results (nothing has been run on this computer yet).';
+    els.tableSub.textContent = S.computed ? 'Computed on this computer.' : 'The paper’s results for the examples (nothing has been run on this computer yet).';
     const cols = [
       { label: 'H [m]', n: true, get: (w) => fmt(w.H, 2), csv: (w) => w.H },
       { label: 't [m]', n: true, get: (w) => fmt(w.t, 2), csv: (w) => w.t },
@@ -143,15 +153,17 @@
       { label: 'Energy drift', n: true, title: 'relative to m g Hr / 2', get: (w) => sci(w.drift), csv: (w) => w.drift },
       { label: 'Step halved', n: true, title: 'relative change of the landing velocities, h = 1e-4 s against 5e-5 s', get: (w) => sci(w.landing), csv: (w) => w.landing },
     ];
-    if (S.computed) cols.push({ label: 'Slide residual', n: true, title: 'energy balance of the slide regime, relative to m g Hr / 2', get: (w) => w.slides ? sci(w.slideResidual) : 'no slide', csv: (w) => w.slides ? w.slideResidual : '' },
-      { label: 'Regimes', get: (w) => (w.regimes || '').replace(/^start /, ''), csv: (w) => w.regimes || '' });
+    cols.push({ label: 'Slide residual', n: true, title: 'energy balance of the slide regime, relative to m g Hr / 2', get: (w) => w.slides ? sci(w.slideResidual) : 'no slide', csv: (w) => w.slides ? w.slideResidual : '' });
+    if (S.computed) cols.push({ label: 'Regimes', get: (w) => (w.regimes || '').replace(/^start /, ''), csv: (w) => w.regimes || '' });
+    const exName = (id) => { const x = FD.info.examples.find(e => e.id === id); return x ? x.title : ''; };
+    if (W.some(w => w.example)) cols.push({ label: 'Example', get: (w) => w.example ? exName(w.example) : '–', csv: (w) => w.example || '' });
     els.cols = cols;
     els.table.replaceChildren(FD.table(W, cols));
 
     const T = R.twoBlock, mx = (q) => Math.max(...Object.values(q)), badge = (ok) => h('span', { class: 'badge' + (ok ? ' good' : '') }, ok ? 'pass' : 'fail');
     const rod = R.rod || null;
     els.tests.replaceChildren(FD.table([
-      { what: 'V1', test: `one body with the toe contact rules, against the rigid phase of the model (${T.V1_n === 55 ? 'the paper’s 55 total-collapse walls' : `the ${T.V1_n} walls of C1–C2`})`, v: mx(T.V1), ok: T.V1_pass },
+      { what: 'V1', test: `one body with the toe contact rules, against the rigid phase of the model (the ${T.V1_n === 1 ? 'wall' : `${T.V1_n} walls`} above)`, v: mx(T.V1), ok: T.V1_pass },
       { what: 'V2', test: 'two pinned blocks in free flight for 2 s: energy, momentum, angular momentum', v: Math.max(T.V2.relE, T.V2.relPx, T.V2.relL), ok: T.V2_pass },
       { what: 'V3', test: 'two thin rods hinged together, against Lagrange’s equations (rod 10⁻⁹ m thick)', v: T.V3['1e-9'], ok: T.V3_pass },
     ].concat(rod ? [{ what: 'Rod', test: `bending moment along a thin rod turning about its base (${rod.n} sections)`, v: rod.maxRelErr, ok: rod.maxRelErr < 1e-9 }] : []), [
@@ -162,6 +174,6 @@
     ]));
   }
 
-  function exportCSV() { FD.saveText(S.computed ? 'rigid_phase_checks.csv' : 'rigid_phase_checks_paper.csv', FD.toCSV(S.result.walls, els.cols), 'csv'); }
-  function exportJSON() { FD.saveText(S.computed ? 'rigid_phase_checks.json' : 'rigid_phase_checks_paper.json', JSON.stringify(S.result, null, 1), 'json'); }
+  function exportCSV() { FD.saveText(S.computed ? 'rigid_phase_checks.csv' : 'rigid_phase_checks_paper_examples.csv', FD.toCSV(S.result.walls, els.cols), 'csv'); }
+  function exportJSON() { FD.saveText(S.computed ? 'rigid_phase_checks.json' : 'rigid_phase_checks_paper_examples.json', JSON.stringify(S.result, null, 1), 'json'); }
 })(window.FD);

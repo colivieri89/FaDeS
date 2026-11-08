@@ -1,12 +1,12 @@
-// Sect. 3 (verification of the rigid phase) and Sect. 4 (integrity of the panel during the fall) of the paper, for the
-// paper's walls or any other total-collapse wall: the jobs, their compact records and the summaries, with the rules
-// of the paper's analysis.
+// Sect. 3 (verification of the rigid phase) and Sect. 4 (integrity of the panel during the fall) of the paper, for any
+// wall in total collapse: the jobs, their compact records and the summaries, with the rules of the paper's analysis.
+// A wall that is one of the worked examples is compared with the paper's results for it.
 'use strict';
-const path = require('path');
 const { resolveParams } = require('../../sim/core/params');
 const { wallGeometry } = require('../../sim/core/geometry');
 const { solveRigidPhase } = require('../../sim/core/rigid_phase');
-const C = require('../campaigns');
+const D = require('../defaults');
+const EX = require('../examples');
 const SEC = require('./sections');
 const FALL = require('./fall_checks');
 const TB = require('./two_block');
@@ -21,7 +21,7 @@ const RUN_KEYS = ['thetaOnset', 'sOverH', 'side', 'end', 'atOnset', 'tAfterHinge
 const pickRun = (r) => r && Object.fromEntries(RUN_KEYS.filter(k => r[k] !== undefined).map(k => [k, r[k]]));
 
 function compact(cfg, checks, fc, b2, pl) {
-  return { id: cfg.id, campaign: cfg.campaign || null, case: cfg.case || null, H: cfg.H, t: cfg.t,
+  return { id: cfg.id, H: cfg.H, t: cfg.t,
     theta0: checks.theta0, thetaImpact: checks.thetaImpact, firstViolation: checks.firstViolation,
     elastic: checks.elasticCracking, plastic: checks.rigidPlastic, firstSlide: checks.firstSlide,
     slideBeforeHinge: checks.slideBeforeHinge, slideLeadDeg: checks.slideLeadDeg,
@@ -102,29 +102,37 @@ function demandCurve(t, Hr, thetaSlip, deltaDeg = 0.5, n = 160) {
   return out;
 }
 
-// the five walls of Sect. 3 (t/H from 0.02 to 0.48)
-const CHECK_WALLS = [{ H: 15, t: 0.30 }, { H: 10, t: 0.60 }, { H: 5, t: 1.20 }, { H: 2.5, t: 1.20 }, { H: 12.6, t: 0.75 }];
+// the examples in total collapse, and the walls of their rigid-phase checks (the default friction)
+const totalExamples = () => EX.all().filter(x => x.wall.mechanism === 'total');
+const checkWalls = () => totalExamples().map(x => ({ H: x.wall.H, t: x.wall.t, mu: D.MATERIALS.mu }));
+const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+// the example whose rigid-phase check is that of the wall w (same H, t and friction), if any
+const rigidExampleOf = (w) => totalExamples().find(x => near(w.H, x.wall.H) && near(w.t, x.wall.t) && near(w.mu, D.MATERIALS.mu) && near(w.muG, D.MATERIALS.muG)) || null;
 
 // one wall: slip angle of the code and of the closed form, energy drift in the conservative regimes, landing state with
 // the step halved, energy balance of the slide regime, and the friction demand |T|/N of the closed form along the fall
 function rigidCheck(w) {
-  const mu = w.mu != null ? w.mu : 0.75;
-  const P = resolveParams({ H: w.H, t: w.t, mechanism: 'total', mu, muG: w.muG != null ? w.muG : mu, variability: { seed: 1, sdThetaDeg: 0, sdMuRel: 0, sdBlockRel: 0 } });
+  const mu = w.mu != null ? w.mu : D.MATERIALS.mu, muG = w.muG != null ? w.muG : mu;
+  const P = resolveParams({ H: w.H, t: w.t, mechanism: 'total', mu, muG, variability: Object.assign({ seed: 1 }, D.NOMINAL) });
   const geom = wallGeometry(P);
   const a = solveRigidPhase(P, geom), b = solveRigidPhase(P, geom, { h: 5e-5 }), e = solveRigidPhase(P, geom, { slideEnergy: true });
   const slip = a.log.find(l => l.reason === 'slip');
   const cf = slipClosedForm(P.t, P.Hr, mu, P.theta0.deltaDeg);
   const landing = Math.max(...['omega', 'vx', 'vy'].map(k => Math.abs(b.state[k] - a.state[k]) / Math.max(Math.abs(a.state[k]), 1e-9)));
   const demand = demandCurve(P.t, P.Hr, slip ? slip.theta_deg : a.theta_deg, P.theta0.deltaDeg);
-  return { H: w.H, t: w.t, mu, tOverH: w.t / w.H, theta0: a.theta0_deg, thetaImpact: a.theta_deg,
+  const ex = rigidExampleOf({ H: w.H, t: w.t, mu, muG });
+  return { H: w.H, t: w.t, mu, muG, tOverH: w.t / w.H, example: ex ? ex.id : null, theta0: a.theta0_deg, thetaImpact: a.theta_deg,
     slipCode: slip ? slip.theta_deg : null, slipClosedForm: cf, diff: slip && cf != null ? slip.theta_deg - cf : null,
     drift: a.energy.maxConservativeDrift, landing, slides: e.log.some(l => l.regime === 'SLIDE' || l.reason === 'slip'),
     slideResidual: e.energy.slideResidualMax, regimes: a.log.map(l => l.reason).join(' '), demand };
 }
 
+// the checks of the given walls (the examples in total collapse by default), the tests of the two-block code (V1 for
+// each of the walls) and the test of the internal actions
 function rigidChecks(options = {}) {
-  const walls = (options.walls && options.walls.length ? options.walls : CHECK_WALLS).map(rigidCheck);
-  const ver = TB.verify(), rod = SEC.rodUnitTest();
+  const ws = options.walls && options.walls.length ? options.walls : checkWalls();
+  const walls = ws.map(rigidCheck);
+  const ver = TB.verify(walls.map((w, i) => ({ id: `wall${i + 1}`, H: w.H, t: w.t, bx: 0.15, by: 0.15, mu: w.mu, muG: w.muG }))), rod = SEC.rodUnitTest();
   return { walls,
     twoBlock: { V1: ver.summary.V1_maxRel, V1_pass: ver.summary.V1_pass, V1_n: ver.V1.length, V2: ver.V2, V2_pass: ver.summary.V2_pass,
                 V3: ver.summary.V3_maxRelByT, V3_pass: ver.summary.V3_pass },
@@ -132,12 +140,12 @@ function rigidChecks(options = {}) {
 }
 
 // ------------------------------------------------------------------ the study of Sect. 4
-// walls: the paper's campaigns (C1, C2), a grid of heights and thicknesses, or walls given one by one (total collapse
-// only, as in the paper: the partial-collapse panels pivot on the residual wall and were not analysed); each wall may
-// give its own friction mu and density rho; fts: tensile strengths [MPa] of the post hoc check
-const DEFAULT_OPTIONS = { campaigns: ['C1', 'C2'], grid: null, walls: [], fts: FALL.DEFAULT_FT };
+// walls: some of the worked examples (those in total collapse), a grid of heights and thicknesses, or walls given one
+// by one (total collapse only, as in the paper: the partial-collapse panels pivot on the residual wall and were not
+// analysed); each wall may give its own friction mu and density rho; fts: tensile strengths [MPa] of the post hoc check
+const DEFAULT_OPTIONS = { examples: null, grid: null, walls: [], fts: FALL.DEFAULT_FT };
 function wallsOf(o) {
-  const out = SEC.configs((o.campaigns || []).filter(c => c === 'C1' || c === 'C2'));
+  const out = [];
   const add = (w, i) => {
     if (w.mechanism && w.mechanism !== 'total') return;
     const cfg = { id: String(w.id != null ? w.id : `wall${i + 1}`), H: +w.H, t: +w.t, bx: w.bx != null ? +w.bx : 0.15, by: w.by != null ? +w.by : 0.15 };
@@ -148,6 +156,11 @@ function wallsOf(o) {
     if (!(cfg.H > 0 && cfg.t > 0 && cfg.t < cfg.H)) throw new Error(`wall ${cfg.id}: H and t must be positive, t < H`);
     out.push(cfg);
   };
+  for (const id of o.examples || []) {
+    const x = EX.get(id);
+    if (!x) throw new Error(`no example called ${id}`);
+    add(x.wall, out.length);
+  }
   if (o.grid) for (const H of o.grid.heights) for (const t of o.grid.thicknesses) add(Object.assign({}, o.grid, { id: `H${H}_t${Number(t).toFixed(2)}`, H, t }), out.length);
   (o.walls || []).forEach(add);
   const ids = new Set();
@@ -156,6 +169,7 @@ function wallsOf(o) {
 }
 function plan(options = {}) {
   const o = Object.assign({}, DEFAULT_OPTIONS, options);
+  if (o.examples == null) o.examples = o.grid || (o.walls && o.walls.length) ? [] : totalExamples().map(x => x.id);
   const fts = [...new Set((o.fts || []).map(Number))].filter(x => x > 0).sort((a, b) => a - b);
   o.fts = fts;
   const configs = wallsOf(o);
@@ -175,7 +189,10 @@ const estimate = (p, workers = 1) => {
 
 const range = (a) => { const v = a.filter(Number.isFinite); return v.length ? [Math.min(...v), Math.max(...v)] : [NaN, NaN]; };
 
-// a wall of campaigns C1-C2 against the paper's stored result: identical, or the largest relative difference of its
+// the example whose nominal wall is the wall cfg (same input of the simulator), if any
+const exampleOf = (cfg) => totalExamples().find(x => EX.sameInput(SEC.input(cfg, 0), SEC.input(x.wall, 0))) || null;
+
+// a wall against the paper's result for its example: identical, or the largest relative difference of its
 // numbers over the tensile strengths both contain; the value of the criterion at a located hinge (g, zero to rounding,
 // of order 1e-16) counts for "identical" but not for the difference
 function agreement(r, q) {
@@ -197,9 +214,9 @@ function agreement(r, q) {
 
 function summarize(p, results) {
   // each row carries the wall it was computed for (job order = order of the configurations)
-  const R = results.map((r, i) => r && r.firstViolation !== undefined ? Object.assign({}, r, { wall: p.configs[i] }) : null).filter(Boolean);
-  const ref = reference().integrity.rows, byId = new Map(ref.map(r => [r.id, r]));
-  const cmp = results.filter(r => r && r.campaign && byId.has(r.id) && r !== byId.get(r.id)).map(r => agreement(r, byId.get(r.id)));
+  const ex = p.configs.map(exampleOf);
+  const R = results.map((r, i) => r && r.firstViolation !== undefined ? Object.assign({}, r, { wall: p.configs[i], example: ex[i] ? ex[i].id : null }) : null).filter(Boolean);
+  const cmp = p.stored ? [] : results.map((r, i) => r && r.firstViolation !== undefined && ex[i] ? agreement(r, ex[i].integrity) : null).filter(Boolean);
   const keys = ftKeys(p.options.fts);
   const run0 = (r) => r.fc && r.fc['0'];
   const hinged = R.filter(r => r.firstViolation && run0(r) && run0(r).thetaOnset != null);
@@ -232,24 +249,24 @@ function summarize(p, results) {
   };
 }
 
-// the paper's values, from its stored results (the 48 walls of C1 and C2; its 55 include 7 documented walls)
-let REF = null;
-function reference() {
-  if (!REF) REF = { integrity: require(path.join(__dirname, '..', '..', '..', 'reference', 'integrity_nominal.json')),
-                    rigid: require(path.join(__dirname, '..', '..', '..', 'reference', 'rigid_checks.json')) };
-  return REF;
+// the paper's results for the examples in total collapse, as a summary (what the program shows before anything is run)
+function exampleSummary() {
+  const p = plan({ examples: totalExamples().map(x => x.id), fts: FALL.DEFAULT_FT });
+  p.stored = true;
+  return summarize(p, p.configs.map(c => Object.assign({}, exampleOf(c).integrity, { id: c.id })));
 }
-function paperSummary() {
-  const p = plan({ campaigns: ['C1', 'C2'], fts: FALL.DEFAULT_FT });
-  const byId = new Map(reference().integrity.rows.map(r => [r.id, r]));
-  return summarize(p, p.configs.map(c => byId.get(c.id) || null));
-}
-// the paper's checks of the rigid phase (stored results), with the friction demand of the closed form of each wall
-function paperRigid() {
-  const R = reference().rigid;
-  const rod = SEC.rodUnitTest();
-  return Object.assign({}, R, { walls: R.walls.map(w => Object.assign({ mu: 0.75, tOverH: w.t / w.H, demand: demandCurve(w.t, w.H, w.slipCode) }, w)),
-    twoBlock: Object.assign({ V1_n: 55 }, R.twoBlock), rod: { maxRelErr: Math.max(...rod.map(r => r.relErr)), n: rod.length } });
+// the paper's checks of the rigid phase of the examples in total collapse, with the friction demand of the closed form
+// of each wall; V1 over the examples, V2 and V3 as stored, the thin-rod test computed
+function exampleRigid() {
+  const xs = totalExamples(), V1 = xs.map(x => x.rigid.V1), T = EX.twoBlockTests(), rod = SEC.rodUnitTest();
+  const worst = (k) => Math.max(...V1.map(v => typeof v[k] === 'number' ? v[k] : Infinity));
+  return {
+    walls: xs.map(x => Object.assign({ H: x.wall.H, t: x.wall.t, mu: D.MATERIALS.mu, muG: D.MATERIALS.muG, tOverH: x.wall.t / x.wall.H, example: x.id,
+      demand: demandCurve(x.wall.t, x.wall.H, x.rigid.slipCode) }, x.rigid, { V1: undefined })),
+    twoBlock: { V1: Object.fromEntries(['dT', 'dTheta', 'dState', 'dPos', 'switches'].map(k => [k, worst(k)])),
+      V1_pass: ['dT', 'dTheta', 'dState', 'switches'].every(k => worst(k) <= 1e-6) && V1.every(v => v.end === 'groundContact' && v.regimes.split(' ').length === v.regimesRef.split(' ').length),
+      V1_n: V1.length, V2: T.V2, V2_pass: T.V2_pass, V3: T.V3, V3_pass: T.V3_pass },
+    rod: { maxRelErr: Math.max(...rod.map(r => r.relErr)), n: rod.length } };
 }
 
 const KINDS = ['integrity', 'integrityTrace', 'rigidChecks'];
@@ -277,5 +294,5 @@ function toCSV(s) {
   return [head].concat(rows).map(r => r.join(',')).join('\n') + '\n';
 }
 
-module.exports = { execute, KINDS, toCSV, plan, estimate, summarize, paperSummary, paperRigid, reference, compact, integrityRecord, integrityTrace,
-                   rigidCheck, rigidChecks, slipClosedForm, toeClosedForm, demandCurve, wallsOf, CHECK_WALLS, DEFAULT_OPTIONS, RUN_KEYS };
+module.exports = { execute, KINDS, toCSV, plan, estimate, summarize, exampleSummary, exampleRigid, exampleOf, totalExampleIds: () => totalExamples().map(x => x.id), compact, integrityRecord, integrityTrace,
+                   rigidCheck, rigidChecks, slipClosedForm, toeClosedForm, demandCurve, wallsOf, checkWalls, DEFAULT_OPTIONS, RUN_KEYS };

@@ -9,9 +9,7 @@
 const { wallGeometry, blockLayout } = require('../../sim/core/geometry');
 const { solveRigidPhase, rot, groundY } = require('../../sim/core/rigid_phase');
 const { measures } = require('../../sim/core/measures');
-const { resolveParams } = require('../../sim/core/params');
 const { perturbedParams } = require('../../sim/core/run');
-const C = require('../campaigns');
 const SEC = require('./sections');
 
 const G = 9.81, H_STEP = 1e-4, T_MAX = 30;
@@ -271,9 +269,7 @@ function integrate(sys, S0, { h = H_STEP, tMax = T_MAX, g = G, sample = 0 } = {}
 
 // ------------------------------------------------------------------ set-up from the model's parameters
 function setup(cfg, seed) {
-  const variability = seed === 0 ? { seed: 1, sdThetaDeg: 0, sdMuRel: 0, sdBlockRel: 0 } : Object.assign({ seed }, C.VARIABILITY);
-  const P0 = resolveParams(C.runParams(C.geometryParams('T', cfg.H, cfg.t), { bx: cfg.bx, by: cfg.by }, seed || 1, Object.assign({ variability }, SEC.materials(cfg))));
-  const { P, rng } = perturbedParams(P0);
+  const { P, rng } = perturbedParams(SEC.input(cfg, seed));
   return { P, rng, geom: wallGeometry(P) };
 }
 // the model's rigid panel as a one-body system (limit case of a hinge at the toe: V1)
@@ -454,10 +450,10 @@ function analyse(cfg, seed, checks, variant, hingeMode = 'firstCrossing', critMo
 }
 
 // ------------------------------------------------------------------ verification of the two-block code (Sect. 3)
-function verify() {
+function verify(walls) {
   const rep = { V1: [], V2: null, V3: [] };
-  // V1: one body, the toe contact rules: must reproduce solveRigidPhase
-  for (const cfg of SEC.configs()) {
+  // V1: one body, the toe contact rules: must reproduce solveRigidPhase, for each of the given walls in total collapse
+  for (const cfg of walls) {
     const { P, geom } = setup(cfg, 0), ref = solveRigidPhase(P, geom), rs = rigidSystem(P, geom);
     const res = integrate(rs.sys, rs.S);
     const s = res.S[0], vs = Math.hypot(ref.state.vx, ref.state.vy) + Math.abs(ref.state.omega) * P.Hr;

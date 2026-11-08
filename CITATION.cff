@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "FaDeS – Façade Debris Simulator: rigid-block simulation of the overturning of masonry façades and of their debris"
-version: 1.0.0
+version: 1.1.0
 license: MIT
 doi: 10.5281/zenodo.24046462
 repository-code: "https://github.com/colivieri89/FaDeS"
@@ -40,8 +40,9 @@ abstract: >-
   against a closed form, and the integrity of the falling panel with no tensile
   strength or with any tensile strength. It is the simulator of the paper
   "Simulating the debris of overturning masonry façades with rigid blocks: from
-  the falling panel to the documented collapses" and reproduces its analyses,
-  comparing every run of the paper's campaigns with the paper's stored results.
+  the falling panel to the documented collapses" and makes its analyses for any
+  wall; four worked examples, one wall of each type analysed in the paper, come
+  with the paper's results for them, against which their runs are compared.
   Desktop application for Windows and macOS, and command line.
 keywords:
   - masonry

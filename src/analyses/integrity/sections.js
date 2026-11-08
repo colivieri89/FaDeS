@@ -6,29 +6,25 @@
 const { resolveParams } = require('../../sim/core/params');
 const { perturbedParams } = require('../../sim/core/run');
 const { rot } = require('../../sim/core/rigid_phase');
-const C = require('../campaigns');
+const D = require('../defaults');
 
 const G = 9.81;
 const SECTIONS = Array.from({ length: 49 }, (_, i) => (i + 1) * 0.02);   // s/H = 0.02 ... 0.98
 
-// total-collapse configurations of campaigns C1 and C2, and documented walls loaded from a CSV
-function configs(ids = ['C1', 'C2'], cases = []) {
-  return C.configurations(ids.filter(c => c === 'C1' || c === 'C2')).concat(C.caseConfigurations(cases, 'T'));
-}
-
-// friction, density and diatone courses of a wall that gives its own (the campaigns' values otherwise)
+// friction, density and diatone courses of a wall that gives its own (the default values otherwise)
 const materials = (cfg) => {
   const m = Object.fromEntries(['mu', 'muG', 'rho'].filter(k => cfg[k] != null).map(k => [k, cfg[k]]));
-  if (cfg.diatoneStep != null) m.diatones = { on: cfg.diatoneStep > 0, step: cfg.diatoneStep > 0 ? cfg.diatoneStep : C.PAPER_PARAMS.diatones.step, h: C.PAPER_PARAMS.diatones.h };
+  if (cfg.diatoneStep != null) m.diatones = { on: cfg.diatoneStep > 0, step: cfg.diatoneStep > 0 ? cfg.diatoneStep : D.MATERIALS.diatones.step, h: D.MATERIALS.diatones.h };
   return m;
 };
 
-// parameters of a run: seed 0 is the nominal wall (no variability), seeds 1-20 those of the campaigns
-function params(cfg, seed) {
-  const variability = seed === 0 ? { seed: 1, sdThetaDeg: 0, sdMuRel: 0, sdBlockRel: 0 } : Object.assign({ seed }, C.VARIABILITY);
-  const P0 = resolveParams(C.runParams(C.geometryParams('T', cfg.H, cfg.t), { bx: cfg.bx, by: cfg.by }, seed || 1, Object.assign({ variability }, materials(cfg))));
-  return perturbedParams(P0).P;
+// the input of the simulator for a wall in total collapse: seed 0 is the nominal wall (no variability), other seeds
+// draw the default variability
+function input(cfg, seed) {
+  const variability = seed === 0 ? Object.assign({ seed: 1 }, D.NOMINAL) : Object.assign({ seed }, D.VARIABILITY);
+  return resolveParams(Object.assign({}, D.MATERIALS, { H: cfg.H, t: cfg.t, mechanism: 'total', bx: cfg.bx, by: cfg.by, variability }, materials(cfg)));
 }
+const params = (cfg, seed) => perturbedParams(input(cfg, seed)).P;
 
 // internal actions at section s (from the toe, along the panel) for state st with accelerations (ax, ay, alpha)
 function actions(pan, st, acc, s) {
@@ -78,4 +74,4 @@ function rodUnitTest() {
   return out;
 }
 
-module.exports = { configs, params, materials, actions, accel, rodUnitTest, SECTIONS };
+module.exports = { input, params, materials, actions, accel, rodUnitTest, SECTIONS };

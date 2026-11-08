@@ -1,17 +1,17 @@
 'use strict';
-// Parametric study: any set of walls (a grid of heights and thicknesses, a CSV file with one wall per row, or the
-// paper's campaign configurations), each run with the chosen seeds; extent at break-up and at rest per wall and, with
-// a street width, the width left free.
+// Parametric study (Sect. 5 of the paper, for any wall in total or partial collapse): any set of walls (a grid of heights and thicknesses, a CSV file with
+// one wall per row, or the worked examples), each run with the chosen seeds; extent at break-up and at rest per wall,
+// the increment added by the debris phase (Fig. 7) and, with a street width, the width left free. Shows the paper's
+// results for the examples until the study is run.
 (function (FD) {
   const { h, fmt } = FD;
   const S = {
-    source: 'grid',
+    source: 'examples', examples: null,
     grid: { mechanism: 'total', heightsText: '6, 9, 12', thicknessesText: '0.45, 0.60', HrRatio: 1 / 3, bx: 0.15, by: 0.15, diatoneStep: 2,
             mu: null, muG: null, e: null, rho: null },
     csv: { walls: [], name: '' },
-    campaigns: ['C1'],
     W: '', seedsText: '1-20', variability: 'paper', sd: null,
-    workers: null, summary: null, running: null, progress: null, error: null, cancelled: false,
+    workers: null, summary: null, computed: false, running: null, progress: null, error: null, cancelled: false,
   };
   let els = {}, info = null;
 
@@ -29,28 +29,30 @@
     const o = { seeds: FD.parseSeeds(S.seedsText), variability: variability(), W: S.W !== '' && +S.W > 0 ? +S.W : null };
     if (S.variability === 'none') o.seeds = [o.seeds[0]];
     if (S.source === 'grid') {
-      const g = S.grid, pp = info.paperParams;
+      const g = S.grid, pp = info.materials;
       o.grid = { mechanism: g.mechanism, heights: numList(g.heightsText, 'Heights'), thicknesses: numList(g.thicknessesText, 'Thicknesses'),
         bx: +g.bx, by: +g.by, diatoneStep: +g.diatoneStep, mu: +(g.mu ?? pp.mu), muG: +(g.muG ?? pp.muG), e: +(g.e ?? pp.e), rho: +(g.rho ?? pp.rho) };
       if (g.mechanism === 'partial') o.grid.HrRatio = +g.HrRatio;
     } else if (S.source === 'csv') {
       if (!S.csv.walls.length) throw new Error('load a CSV file of walls first');
       o.walls = S.csv.walls;
-    } else o.campaigns = S.campaigns;
+    } else o.examples = S.examples;
     return o;
   }
 
   FD.views.study = {
     title: 'Parametric study',
-    async render(root, inf) {
+    async render(root, inf, go, opts = {}) {
       info = inf;
       if (S.workers == null) S.workers = info.defaultWorkers;
+      if (!S.examples) S.examples = info.examples.map(x => x.id);
+      if (opts.example && !S.running) { S.source = 'examples'; S.examples = [opts.example]; S.summary = null; }
       if (!S.sd) S.sd = { theta: info.variability.sdThetaDeg, block: info.variability.sdBlockRel * 100, mu: info.variability.sdMuRel * 100 };
       els = {};
       root.append(
         h('div', { class: 'kicker' }, 'Analysis · many walls'),
         h('h1', {}, 'Parametric study of the debris'),
-        h('p', { class: 'lede' }, 'Run any set of walls, each with several seeds: a grid of heights and thicknesses, a CSV file with one wall per row (your own buildings, with their blocks and materials), or the configurations of the paper’s campaigns. Each wall is measured at the instant of break-up and at rest, and summarised by the seed medians and ranges of P95 and Lmax. Give a street width to see how much of the street stays free.'),
+        h('p', { class: 'lede' }, 'Run any set of walls, each with several seeds: a grid of heights and thicknesses, a CSV file with one wall per row (your own buildings, with their blocks and materials), or the worked examples. Each wall is measured at the instant of break-up and at rest, and summarised by the seed medians and ranges of P95 and Lmax and by the increment that the debris phase adds to P95, as in Section 5 of the paper. Give a street width to see how much of the street stays free.'),
         inputs(),
         els.status = h('div'),
         els.tiles = h('div', { class: 'tiles' }),
@@ -59,15 +61,33 @@
           h('p', { class: 'sub' }, 'Seed medians against the height of the wall. Bars: range of P95 over the seeds. Dashed: a distance of one height.'),
           h('div', { class: 'row chart-head' }, els.legend = h('div'), h('div', { class: 'spacer' }), FD.chartActions(() => els.chart, 'study_extent')),
           els.chartBox = h('div')),
+        h('div', { class: 'grid2' },
+          chartCard('b', 'P95 / H at rest and at break-up', 'Seed medians against the slenderness t/H (t/Hr for a partial collapse). Filled: at rest. Open ring: at the instant of break-up (a dot inside a ring: the same value). Dotted: P95 = H.'),
+          chartCard('c', 'Increment added by the debris phase', 'Increment of P95/H from break-up to rest, the median of the per-seed differences, against 3 % of P95/H.')),
         h('div', { class: 'card', style: 'margin-top:16px' },
           h('div', { class: 'row' }, h('div', {}, h('h2', {}, 'Walls'), els.tableSub = h('p', { class: 'sub' })), h('div', { class: 'spacer' }),
             h('button', { class: 'btn ghost', onclick: () => exportCSV() }, FD.icon('download'), 'CSV'),
             h('button', { class: 'btn ghost', onclick: () => exportJSON() }, FD.icon('download'), 'JSON')),
           els.table = h('div')));
+      if (!S.summary && S.source === 'examples') await showStored();
       showSource(); refreshEstimate(); renderStatus(); renderResults();
-      FD.onTheme(() => { els.chart && els.chart.draw(); }, 'study');
+      FD.onTheme(() => { ['chart', 'cb', 'cc'].forEach(k => els[k] && els[k].draw()); }, 'study');
     },
   };
+
+  // the paper's results for the chosen examples
+  async function showStored() {
+    if (S.running) return;
+    S.summary = await window.api.exampleSummary('study', S.examples); S.computed = false;
+    renderResults();
+  }
+
+  function chartCard(key, title, sub) {
+    els['box' + key] = h('div');
+    els['legend' + key] = h('div');
+    return h('div', { class: 'card' }, h('h2', {}, title), h('p', { class: 'sub' }, sub),
+      h('div', { class: 'row chart-head' }, els['legend' + key], h('div', { class: 'spacer' }), FD.chartActions(() => els['c' + key], `study_${key === 'b' ? 'p95_slenderness' : 'increment'}`)), els['box' + key]);
+  }
 
   // ------------------------------------------------------------------ inputs
   const seg = (options, on, onchange) => {
@@ -82,7 +102,7 @@
     h('input', { class: 'txt', value, oninput: (e) => { oninput(e.target.value); refreshEstimate(); } }));
 
   function inputs() {
-    const g = S.grid, pp = info.paperParams;
+    const g = S.grid, pp = info.materials;
     els.hr = h('div', { style: g.mechanism === 'partial' ? '' : 'display:none' },
       field('Overturning part Hr / H', '', +(+g.HrRatio).toFixed(3), (v) => { g.HrRatio = v; }, { step: 0.05, min: 0.05, max: 0.95 }));
     els.grid = h('div', { class: 'form-grid' },
@@ -102,12 +122,13 @@
     els.csv = h('div', {},
       h('div', { class: 'row' }, h('button', { class: 'btn ghost', onclick: () => file.click() }, FD.icon('folder'), 'Load CSV…'), file, els.csvLab,
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost sm', onclick: async () => FD.saveText('walls_template.csv', await window.api.wallsTemplate(), 'csv') }, FD.icon('download'), 'Template')),
-      h('p', { class: 'muted small' }, 'One wall per row. Required: id, mechanism (T total; P partial with Hr_m; P1 and P2 mean Hr = H/3 and 2H/3), H_m, t_m. Optional, the values of the paper’s campaigns when empty: Hr_m, bx_m, by_m, diatone_step_m (0 = none), mu, muG, e, rho, W_m (street width).'),
+      h('p', { class: 'muted small' }, 'One wall per row. Required: id, mechanism (T total; P partial with Hr_m; P1 and P2 mean Hr = H/3 and 2H/3), H_m, t_m. Optional, the default values when empty: Hr_m, bx_m, by_m, diatone_step_m (0 = none), mu, muG, e, rho, W_m (street width).'),
       els.csvTable = h('div'));
-    els.camp = h('div', {}, h('div', { class: 'chips' }, info.campaigns.map(c => h('button', { type: 'button', class: 'chip' + (S.campaigns.includes(c.id) ? ' on' : ''),
-      onclick: (e) => { const i = S.campaigns.indexOf(c.id); if (i >= 0) { if (S.campaigns.length > 1) S.campaigns.splice(i, 1); } else S.campaigns.push(c.id);
-        S.campaigns.sort(); e.currentTarget.classList.toggle('on', S.campaigns.includes(c.id)); refreshEstimate(); } }, c.label))),
-      h('p', { class: 'muted small' }, 'With the paper’s seeds and variability every run is compared with the paper’s stored run.'));
+    const ids = info.examples.map(x => x.id);
+    els.camp = h('div', {}, h('div', { class: 'chips' }, info.examples.map(x => h('button', { type: 'button', class: 'chip' + (S.examples.includes(x.id) ? ' on' : ''),
+      onclick: (e) => { const i = S.examples.indexOf(x.id); if (i >= 0) { if (S.examples.length > 1) S.examples.splice(i, 1); } else S.examples.push(x.id);
+        S.examples.sort((a, b) => ids.indexOf(a) - ids.indexOf(b)); e.currentTarget.classList.toggle('on', S.examples.includes(x.id)); refreshEstimate(); if (!S.computed) showStored(); } }, x.title))),
+      h('p', { class: 'muted small' }, 'One wall of each type analysed in the paper. With the seeds 1–20 and the paper’s variability every run is compared with the paper’s run of the same seed.'));
     const sdBox = h('div', { class: 'form-grid', style: S.variability === 'custom' ? '' : 'display:none' },
       field('Start angle, sd', '°', S.sd.theta, (v) => { S.sd.theta = v; }, { step: 0.05, min: 0 }),
       field('Block joints, sd', '% of the block', S.sd.block, (v) => { S.sd.block = v; }, { step: 1, min: 0 }),
@@ -118,7 +139,7 @@
     els.estimate = h('span', { class: 'muted small' });
     return h('div', { class: 'card' },
       h('div', { class: 'filters' },
-        h('span', { class: 'lab' }, 'Walls'), seg([['grid', 'Grid of H and t'], ['csv', 'From a CSV file'], ['campaigns', 'Paper campaigns']], S.source, (v) => { S.source = v; showSource(); refreshEstimate(); }),
+        h('span', { class: 'lab' }, 'Walls'), seg([['examples', 'Worked examples'], ['grid', 'Grid of H and t'], ['csv', 'From a CSV file']], S.source, (v) => { S.source = v; showSource(); refreshEstimate(); }),
         h('span', {}), h('div', {}, els.grid, els.csv, els.camp),
         h('span', { class: 'lab' }, 'Street width W'), h('div', { class: 'row' },
           h('input', { type: 'number', class: 'txt', style: 'width:110px', value: S.W, min: 0, step: 0.5, placeholder: 'none', oninput: (e) => { S.W = e.target.value; refreshEstimate(); } }),
@@ -131,6 +152,7 @@
           sdBox),
         h('span', { class: 'lab' }, 'Parallel runs'), h('div', { class: 'row' }, wk, wkLab, h('span', { class: 'muted small' }, `of ${info.cores} cores`))),
       h('div', { class: 'row', style: 'margin-top:18px' }, els.runBtn, h('div', { class: 'spacer' }),
+        els.storedBtn = h('button', { class: 'btn ghost', title: 'Show the paper’s results for the chosen examples', onclick: () => showStored() }, 'Paper results'),
         h('button', { class: 'btn ghost', title: 'Open the folder where the runs of this computer are stored', onclick: () => window.api.openPath(info.resultsDir) }, FD.icon('folder'), 'Results folder'),
         h('button', { class: 'btn ghost', title: 'Delete the stored runs of this view (they are recomputed at the next run)',
           onclick: async () => { if (S.running) return; if (!confirm('Delete the runs stored on this computer for the parametric study?')) return; await window.api.clearResults('study'); FD.toast('Stored runs deleted'); } }, 'Clear stored runs')),
@@ -139,7 +161,8 @@
   function showSource() {
     els.grid.style.display = S.source === 'grid' ? '' : 'none';
     els.csv.style.display = S.source === 'csv' ? '' : 'none';
-    els.camp.style.display = S.source === 'campaigns' ? '' : 'none';
+    els.camp.style.display = S.source === 'examples' ? '' : 'none';
+    els.storedBtn.style.display = S.source === 'examples' ? '' : 'none';
     renderCSVTable();
   }
   async function loadCSV(f) {
@@ -181,12 +204,12 @@
     const { id } = await window.api.startStudy('study', opts, S.workers);
     S.running = id;
     const offP = window.api.onStudyProgress((m) => { if (m.id !== id) return; S.progress = m; renderStatus(); });
-    const offS = window.api.onStudyPartial((m) => { if (m.id !== id) return; S.summary = m.summary; renderResults(); });
+    const offS = window.api.onStudyPartial((m) => { if (m.id !== id) return; S.summary = m.summary; S.computed = true; renderResults(); });
     const offE = window.api.onStudyError((m) => { if (m.id !== id) return; S.error = m.message; renderStatus(); });
     const offD = window.api.onStudyDone((m) => {
       if (m.id !== id) return;
       offP(); offS(); offE(); offD();
-      S.running = null; S.summary = m.summary; S.cancelled = m.cancelled;
+      S.running = null; S.summary = m.summary; S.computed = true; S.cancelled = m.cancelled;
       refreshEstimate(); renderStatus(); renderResults();
       FD.toast(m.cancelled ? 'Study stopped; the runs done so far are stored and will be reused' : 'Study complete');
     });
@@ -224,6 +247,7 @@
       els.legend.replaceChildren();
       els.chartBox.replaceChildren(h('div', { class: 'placeholder' }, h('div', {}, h('b', {}, 'Nothing computed yet'), 'Choose the walls and press Run the study.')));
       els.chart = null;
+      for (const k of ['b', 'c']) { els['legend' + k].replaceChildren(); els['box' + k].replaceChildren(); els['c' + k] = null; }
       els.tableSub.textContent = '';
       els.table.replaceChildren();
       return;
@@ -235,6 +259,8 @@
       FD.tile('P95 at rest', rows.length ? `${fmt(Math.min(...rows.map(r => r.p95)))}–${fmt(Math.max(...rows.map(r => r.p95)))} m` : '–', `${rows.length ? fmt(Math.min(...rows.map(r => r.p95_H)), 2) : '–'}–${rows.length ? fmt(Math.max(...rows.map(r => r.p95_H)), 2) : '–'} H, range of the seed medians`),
       FD.tile('Lmax at rest', rows.length ? `${fmt(Math.min(...rows.map(r => r.Lmax)))}–${fmt(Math.max(...rows.map(r => r.Lmax)))} m` : '–', 'range of the seed medians'),
     ];
+    if (Number.isFinite(T.incRange_H[0])) tiles.push(FD.tile('Increment, break-up to rest', T.incRange_H[0] === T.incRange_H[1] ? `${fmt(T.incRange_H[0], 4)} H` : `${fmt(T.incRange_H[0], 4)}–${fmt(T.incRange_H[1], 4)} H`,
+      `above 3 % of P95 in ${T.nAboveTolerance} of ${rows.filter(r => Number.isFinite(r.inc_H)).length} walls`));
     if (withW.length) tiles.push(FD.tile('Street reached', `${T.nStreetReached} of ${withW.length}`, 'walls whose P95 reaches W in most seeds'));
     if (T.nCompared) tiles.push(FD.tile('Agreement with the paper', `${T.nIdentical} / ${T.nCompared}`, `runs identical; largest difference P95 ${pctTxt(T.maxAbsDeltaP95_pct)} %, Lmax ${pctTxt(T.maxAbsDeltaLmax_pct)} %`));
     els.tiles.replaceChildren(...tiles);
@@ -243,8 +269,9 @@
     const Hmax = Math.max(...rows.map(r => r.H), 1);
     const series = [
       { name: 'one height', color: '--ref', line: true, dash: true, width: 1.2, noHover: true, points: [{ x: 0, y: 0 }, { x: 1.06 * Hmax, y: 1.06 * Hmax }] },
+      // the open ring is drawn first and larger, so that a filled point with the same value stays visible inside it
+      { name: 'P95 at break-up', color: '--series-1', marker: 'circle', filled: false, size: 6.2, points: pts('p95Break') },
       { name: 'P95 at rest', color: '--series-1', marker: 'circle', filled: true, points: pts('p95') },
-      { name: 'P95 at break-up', color: '--series-1', marker: 'circle', filled: false, size: 3.4, points: pts('p95Break') },
       { name: 'Lmax at rest', color: '--series-2', marker: 'square', filled: true, size: 3.6, points: pts('Lmax') },
       // seed range of P95, drawn as short vertical segments
       ...rows.filter(r => r.p95Range[1] > r.p95Range[0]).map(r => ({ name: 'range', color: '--series-1', line: true, width: 1.5, noHover: true,
@@ -260,8 +287,10 @@
     const spec = { height: 340, x: { label: 'height of the wall H [m]', min: 0, max: 1.06 * Hmax }, y: { label: 'distance from the façade [m]', min: 0 }, series,
       hlines: Ws.map(w => ({ y: w, color: '--ink-2', dash: true, label: Ws.length === 1 ? `W = ${fmt(w)} m` : null })), tooltip: tip };
     if (els.chart) els.chart.update(spec); else { els.chartBox.replaceChildren(); els.chart = new FD.Chart(els.chartBox, spec); }
+    renderSlenderness(rows, tip);
 
-    els.tableSub.textContent = 'Seed medians over the runs that reached rest; distances from the street face of the façade.';
+    els.tableSub.textContent = (S.computed ? 'Computed on this computer. ' : 'The paper’s results for the examples (nothing has been run on this computer yet). ') +
+      'Seed medians over the runs that reached rest; distances from the street face of the façade.';
     const cols = [
       { label: 'Wall', get: (r) => r.id },
       { label: 'Mechanism', get: mechTxt, csv: (r) => r.mechanism },
@@ -274,6 +303,7 @@
       { label: 'P95 range [m]', n: true, get: (r) => `${fmt(r.p95Range[0])}–${fmt(r.p95Range[1])}`, csv: (r) => `${r.p95Range[0]}-${r.p95Range[1]}` },
       { label: 'Lmax [m]', n: true, get: (r) => fmt(r.Lmax), csv: (r) => r.Lmax },
       { label: 'P95 / H', n: true, get: (r) => fmt(r.p95_H, 3), csv: (r) => r.p95_H },
+      { label: 'Increment / H', n: true, title: 'P95 at rest minus P95 at break-up, median over the seeds, over H', get: (r) => fmt(r.inc_H, 4), csv: (r) => r.inc_H },
     ];
     if (withW.length) cols.push(
       { label: 'W [m]', n: true, get: (r) => r.W != null ? fmt(r.W) : '–', csv: (r) => r.W ?? '' },
@@ -282,11 +312,42 @@
       { label: 'Heap at W [m]', n: true, title: 'height of the debris at the distance W, median', get: (r) => r.street ? fmt(r.street.heapAtW) : '–', csv: (r) => r.street ? r.street.heapAtW : '' });
     if (T.nCompared) cols.push(
       { label: 'Paper P95 [m]', n: true, get: (r) => r.paper ? fmt(r.paper.p95, 3) : '–', csv: (r) => r.paper ? r.paper.p95 : '' },
-      { label: 'Δ P95 [%]', n: true, get: (r) => r.paper ? signedPct((r.p95 / r.paper.p95 - 1) * 100) : '–', csv: (r) => r.paper ? (r.p95 / r.paper.p95 - 1) * 100 : '' });
+      { label: 'Δ P95 [%]', n: true, get: (r) => r.paper ? signedPct((r.p95 / r.paper.p95 - 1) * 100) : '–', csv: (r) => r.paper ? (r.p95 / r.paper.p95 - 1) * 100 : '' },
+      { label: 'Paper Lmax [m]', n: true, get: (r) => r.paper ? fmt(r.paper.Lmax, 3) : '–', csv: (r) => r.paper ? r.paper.Lmax : '' });
     els.cols = cols;
     els.table.replaceChildren(FD.table(sm.rows, cols));
   }
 
-  function exportCSV() { if (S.summary) FD.saveText('parametric_study.csv', FD.toCSV(S.summary.rows, els.cols), 'csv'); }
-  function exportJSON() { if (S.summary) FD.saveText('parametric_study.json', JSON.stringify(S.summary, null, 1), 'json'); }
+  // P95/H at rest and at break-up, and the increment, against t/H (Fig. 7 of the paper for its walls)
+  const GROUPS = [
+    { key: 'total', name: 'Total collapse', color: '--series-1', marker: 'circle' },
+    { key: 'partial', name: 'Partial collapse', color: '--series-3', marker: 'triangle' },
+  ];
+  function renderSlenderness(rows, tip) {
+    const groups = GROUPS.filter(g => rows.some(r => r.mechanism === g.key));
+    const sb = [], sc = [];
+    for (const g of groups) {
+      const d = rows.filter(r => r.mechanism === g.key).map(r => Object.assign({ x: r.tOverH }, r));
+      sb.push({ name: `${g.name}, at break-up`, color: g.color, marker: g.marker, filled: false, size: 6.2, points: d.filter(r => Number.isFinite(r.p95Break_H)).map(r => Object.assign({}, r, { y: r.p95Break_H })) });
+      sb.push({ name: `${g.name}, at rest`, color: g.color, marker: g.marker, filled: true, points: d.map(r => Object.assign({}, r, { y: r.p95_H })) });
+      sc.push({ name: g.name, color: g.color, marker: g.marker, filled: true, points: d.filter(r => r.inc_H > 0).map(r => Object.assign({}, r, { y: r.inc_H })) });
+    }
+    const withInc = rows.filter(r => r.inc_H > 0);
+    sc.unshift({ name: '3 % of P95/H', color: '--ref', marker: 'tick', filled: true, size: 3.4, noHover: true, points: withInc.map(r => ({ x: r.tOverH, y: 0.03 * r.p95_H })) });
+    const xAxis = { label: 't / H', log: true, fmt: (v) => String(+v.toPrecision(2)) };
+    els.legendb.replaceChildren(FD.legend(groups.map(g => ({ name: g.name, marker: g.marker, color: g.color, filled: true })).concat([{ name: 'open: at break-up', marker: 'circle', color: '--ref', filled: false }])));
+    els.legendc.replaceChildren(FD.legend(groups.map(g => ({ name: g.name, marker: g.marker, color: g.color, filled: true })).concat([{ name: '3 % of P95/H', marker: 'tick', color: '--ref', filled: true }])));
+    const specB = { height: 300, x: xAxis, y: { label: 'P95 / H (seed medians)', min: 0 }, series: sb, hlines: [{ y: 1, color: '--axis', dash: true }], tooltip: tip };
+    if (els.cb) els.cb.update(specB); else { els.boxb.replaceChildren(); els.cb = new FD.Chart(els.boxb, specB); }
+    if (!withInc.length) {
+      els.cc = null;
+      els.boxc.replaceChildren(h('div', { class: 'placeholder' }, h('div', {}, h('b', {}, 'No increment to show'), 'The break-up measure is not available for these walls.')));
+      return;
+    }
+    const specC = { height: 300, x: xAxis, y: { label: 'increment of P95 / H', log: true, fmt: (v) => String(+v.toPrecision(2)) }, series: sc, tooltip: tip };
+    if (els.cc) els.cc.update(specC); else { els.boxc.replaceChildren(); els.cc = new FD.Chart(els.boxc, specC); }
+  }
+
+  function exportCSV() { if (S.summary) FD.saveText(S.computed ? 'parametric_study.csv' : 'parametric_study_paper_examples.csv', FD.toCSV(S.summary.rows, els.cols), 'csv'); }
+  function exportJSON() { if (S.summary) FD.saveText(S.computed ? 'parametric_study.json' : 'parametric_study_paper_examples.json', JSON.stringify(S.summary, null, 1), 'json'); }
 })(window.FD);

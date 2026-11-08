@@ -6,8 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const crypto = require('crypto');
 const { runJobs, defaultWorkers } = require('../runner/pool');
-const C = require('../analyses/campaigns');
-const TOTAL = require('../analyses/total_collapse');
+const D = require('../analyses/defaults');
+const EX = require('../analyses/examples');
 const STUDY = require('../analyses/study');
 const INTEGRITY = require('../analyses/integrity/study');
 const { parseCSV } = require('../analyses/csv');
@@ -17,7 +17,7 @@ const PKG = require('../../package.json');
 // numbers in the interface are written with a decimal point whatever the system language
 app.commandLine.appendSwitch('lang', 'en-US');
 
-const STUDIES = { total: TOTAL, study: STUDY, integrity: INTEGRITY };
+const STUDIES = { study: STUDY, integrity: INTEGRITY };
 let win = null;
 const running = new Map();          // id -> pool emitter
 
@@ -44,16 +44,17 @@ ipcMain.handle('app:info', () => ({
   version: PKG.version, model: MODEL_VERSION, cores: os.availableParallelism ? os.availableParallelism() : os.cpus().length,
   defaultWorkers: defaultWorkers(), platform: process.platform, arch: process.arch, electron: process.versions.electron,
   node: process.versions.node, cpu: (os.cpus()[0] || {}).model || '', resultsDir: resultsDir(),
-  campaigns: C.CAMPAIGNS, seeds: C.SEEDS, thicknesses: C.THICKNESSES, paperParams: C.PAPER_PARAMS, variability: C.VARIABILITY,
-  reference: TOTAL.reference().source, wallDefaults: STUDY.WALL_DEFAULTS, checkWalls: INTEGRITY.CHECK_WALLS,
+  seeds: D.SEEDS, materials: D.MATERIALS, variability: D.VARIABILITY, wallDefaults: STUDY.WALL_DEFAULTS,
+  examples: EX.list(), exampleSource: EX.source(), checkWalls: INTEGRITY.checkWalls(),
 }));
 
 // walls of a study from the text of a CSV file, and the template of that file
 ipcMain.handle('walls:fromCSV', (e, text) => STUDY.wallsFromRows(parseCSV(text)));
-ipcMain.handle('walls:template', () => fs.readFileSync(path.join(__dirname, '..', '..', 'reference', 'walls_template.csv'), 'utf8'));
+ipcMain.handle('walls:template', () => fs.readFileSync(path.join(__dirname, '..', '..', 'examples', 'walls_template.csv'), 'utf8'));
 
-ipcMain.handle('paper:summary', (e, study, options) => STUDIES[study].paperSummary(options));
-ipcMain.handle('paper:rigid', () => INTEGRITY.paperRigid());
+// the paper's results for the worked examples (what a view shows before anything is run)
+ipcMain.handle('examples:summary', (e, study, ids) => STUDIES[study].exampleSummary(ids));
+ipcMain.handle('examples:rigid', () => INTEGRITY.exampleRigid());
 
 // one job of Sects. 3-4 in a worker thread (a few seconds): the checks of the rigid phase, or the trace of one wall
 ipcMain.handle('integrity:job', async (e, kind, params) => {
@@ -98,12 +99,12 @@ ipcMain.handle('study:start', (e, study, options, workers) => {
 
 ipcMain.handle('study:cancel', (e, id) => { const ev = running.get(id); if (ev) { ev.cancel(); running.delete(id); } return true; });
 
-// one wall with its motion (Single wall view); runs in a worker thread so that the window stays responsive. A wall of
-// the campaigns is run with exactly the campaign's parameters and compared with the stored run of the paper.
+// one wall with its motion (Single wall view); runs in a worker thread so that the window stays responsive. The run of
+// a worked example (its wall, a seed from 1 to 20, the default variability) is compared with the paper's run.
 ipcMain.handle('single:start', (e, params) => {
   const id = `single-${Date.now()}`;
-  const camp = C.campaignOf(params);
-  const P = camp ? C.runJob(camp.cfg, camp.seed).params : params;
+  const ex = EX.ofParams(params);
+  const P = ex ? ex.params : params;
   const job = { kind: 'animate', id: 'single', tag: { single: true, seed: P.variability.seed }, params: P };
   const ev = runJobs([job], { workers: 1 });
   running.set(id, ev);
@@ -113,9 +114,9 @@ ipcMain.handle('single:start', (e, params) => {
     running.delete(id);
     if (!r[0]) return;
     let match = null;
-    if (camp) {
-      const q = TOTAL.refRun(camp.cfg.campaign, camp.cfg.H, camp.cfg.t, camp.seed), rec = r[0].record;
-      if (q) match = { campaign: camp.cfg.campaign, id: camp.cfg.id, seed: camp.seed, ref: { p95m: q.p95m, Lmax: q.Lmax, nBlocks: q.nBlocks, stop: q.stop },
+    if (ex) {
+      const q = EX.run(ex.id, ex.seed), rec = r[0].record;
+      if (q) match = { example: ex.id, title: ex.title, seed: ex.seed, ref: { p95m: q.p95m, Lmax: q.Lmax, nBlocks: q.nBlocks, stop: q.stop },
         identical: q.p95m === rec.p.p95.mass && q.Lmax === rec.Lmax && q.nBlocks === rec.nBlocks };
     }
     send('single:done', { id, result: r[0], match });
