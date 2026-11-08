@@ -6,6 +6,14 @@
   "main": "src/main/main.js",
   "license": "MIT",
   "author": "Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
+  "homepage": "https://github.com/colivieri89/facade-debris-simulator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/colivieri89/facade-debris-simulator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/colivieri89/facade-debris-simulator/issues"
+  },
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
@@ -23,7 +31,7 @@
     "electron-builder": "26.18.0"
   },
   "build": {
-    "appId": "org.facadedebris.simulator",
+    "appId": "io.github.colivieri89.facade-debris-simulator",
     "productName": "Facade Debris Simulator",
     "copyright": "Copyright © 2026 Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
     "asar": false,

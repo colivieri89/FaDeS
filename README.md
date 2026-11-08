@@ -29,7 +29,7 @@ Results are exported as CSV or JSON. Charts are exported as SVG or PNG.
 
 ## Installing
 
-Installers are attached to the releases of this repository:
+Installers are attached to the [releases](https://github.com/colivieri89/facade-debris-simulator/releases) of this repository:
 
 - **macOS**: `Facade Debris Simulator-<version>-arm64.dmg` for Apple Silicon, `...-x64.dmg` for Intel.
 - **Windows**: `Facade-Debris-Simulator-Setup-<version>.exe`.
