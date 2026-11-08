@@ -49,8 +49,29 @@ function runJob(cfg, seed, extra = {}) {
            params: runParams(geometryParams(cfg.mech, cfg.H, cfg.t, cfg.Hr), { bx: cfg.bx, by: cfg.by }, seed, Object.assign({ engine: 'planck' }, extra)) };
 }
 
+// the campaign run that a set of parameters describes, if any: returns the configuration and the seed, so that a single
+// run can be made with exactly the campaign's parameters and compared with the stored run of the paper
+function campaignOf(P) {
+  const near = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+  const v = P.variability || {}, d = P.diatones || {};
+  if (!SEEDS.includes(v.seed) || !Object.keys(VARIABILITY).every(k => near(v[k], VARIABILITY[k]))) return null;
+  if (!['mu', 'muG', 'rho', 'e'].every(k => near(P[k], PAPER_PARAMS[k]))) return null;
+  if (!d.on || !near(d.step, PAPER_PARAMS.diatones.step) || !near(d.h, PAPER_PARAMS.diatones.h)) return null;
+  const t = THICKNESSES.find(x => near(P.t, x));
+  if (t == null) return null;
+  for (const c of CAMPAIGNS) {
+    const H = c.H.find(x => near(P.H, x));
+    if (H == null || !near(P.bx, c.bx) || !near(P.by, c.by)) continue;
+    const total = c.mech === 'T';
+    if (total !== (P.mechanism === 'total')) continue;
+    if (!total && !near(P.Hr, (c.mech === 'P2' ? 2 / 3 : 1 / 3) * H)) continue;
+    return { cfg: { id: configId(c.id, H, t), campaign: c.id, mech: c.mech, H, t, bx: c.bx, by: c.by }, seed: v.seed };
+  }
+  return null;
+}
+
 // cost proxy used to start the largest runs first (better load balance), as in the paper's batches
 const jobSize = (j) => (j.params.Hr || j.params.H) * j.params.t / ((j.params.bx || 0.15) * (j.params.by || 0.15));
 
 module.exports = { SEEDS, PAPER_PARAMS, VARIABILITY, THICKNESSES, CAMPAIGNS, geometryParams, runParams, configId, configurations,
-                   caseConfigurations, runJob, jobSize };
+                   caseConfigurations, runJob, campaignOf, jobSize };

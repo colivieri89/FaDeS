@@ -210,7 +210,7 @@ function solveRigidPhase(P, geom, opts = {}) {
 //   mode 'impact'        (default) break-up at the first impact of the rigid panel
 //   mode 'angleFraction' break-up when the rotation reaches max(theta0, fraction * theta_impact), where
 //                        theta_impact is the rotation at impact of the uninterrupted rigid panel
-// The break-up timing is the main epistemic assumption of the model (docs/MODEL.md).
+// The break-up timing is the main assumption of the model (docs/MODEL.md).
 function solveRigidPhaseWithBreakup(P, geom, opts = {}) {
   const bu = P.breakup || { mode: 'impact' };
   const full = solveRigidPhase(P, geom, opts);

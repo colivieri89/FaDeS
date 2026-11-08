@@ -6,14 +6,14 @@
   "main": "src/main/main.js",
   "license": "MIT",
   "author": "Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
-  "homepage": "https://github.com/",
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
     "cli": "node src/cli/cli.js",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist": "electron-builder"
+    "icon": "electron scripts/make_icon.js",
+    "screenshots": "electron scripts/screenshots.js docs/screenshots",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never"
   },
   "dependencies": {
     "planck": "1.5.0"
@@ -21,5 +21,65 @@
   "devDependencies": {
     "electron": "45.2.3",
     "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "org.facadedebris.simulator",
+    "productName": "Facade Debris Simulator",
+    "copyright": "Copyright © 2026 Carlo Olivieri, Generoso Vaiano, Luigi Sibille, Giovanni Mochi, Francesco Fabbrocino",
+    "asar": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "package.json",
+      "LICENSE",
+      "src/**/*",
+      "reference/campaign_runs.json",
+      "reference/breakup_p95.json",
+      "reference/documented_cases_template.csv"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "Facade Debris Simulator ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Facade-Debris-Simulator-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Science",
+      "icon": "build/icon.png"
+    }
   }
 }

@@ -6,6 +6,6 @@ const { parentPort, workerData } = require('worker_threads');
 if (!(workerData && workerData.nativeMath)) require('../sim/detmath').install();
 const { execute } = require('./jobs');
 parentPort.on('message', async (job) => {
-  try { parentPort.postMessage({ ok: true, result: await execute(job) }); }
+  try { parentPort.postMessage({ ok: true, result: await execute(job, (m) => parentPort.postMessage({ notify: m })) }); }
   catch (e) { parentPort.postMessage({ ok: false, error: String(e && e.stack || e) }); }
 });

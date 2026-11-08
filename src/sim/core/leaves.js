@@ -1,4 +1,4 @@
-// EXPLORATORY section variants. Not used by default
+// Exploratory section variants, not used by default
 // (P.leaves.mode = 'single').
 //
 // (1) 'twoLeaf' (mechanism b)

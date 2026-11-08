@@ -36,7 +36,7 @@ function createPlanckEngine(opts = {}) {
       });
       const shapeOf = (sh) => {
         if (sh.type === 'box') return planck.Box(Math.max(sh.w / 2 - skin, 1e-4), Math.max(sh.h / 2 - skin, 1e-4));
-        if (sh.type === 'polygon') {               // EXPLORATORY core grains: vertices shrunk radially by the skin
+        if (sh.type === 'polygon') {               // exploratory core grains: vertices shrunk radially by the skin
           return planck.Polygon(sh.vertices.map(([x, y]) => { const r = Math.hypot(x, y), k = Math.max(r - skin, 0.5 * r) / r; return planck.Vec2(x * k, y * k); }));
         }
         return planck.Edge(planck.Vec2(sh.x0, sh.y0), planck.Vec2(sh.x1, sh.y1));
@@ -53,7 +53,7 @@ function createPlanckEngine(opts = {}) {
         if (d.shape.type === 'polygon') b.setMassData({ mass: d.shape.mass, center: planck.Vec2(0, 0), I: d.shape.inertia });
         else {
           const m = d.density * d.shape.w * d.shape.h;
-          b.setMassData({ mass: m, center: planck.Vec2(0, 0), I: m * (d.shape.w ** 2 + d.shape.h ** 2) / 12 });
+          b.setMassData({ mass: m, center: planck.Vec2(0, 0), I: m * (d.shape.w * d.shape.w + d.shape.h * d.shape.h) / 12 });
         }
         b.setLinearVelocity(planck.Vec2(d.vx || 0, d.vy || 0));
         b.setAngularVelocity(d.omega || 0);

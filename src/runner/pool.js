@@ -25,7 +25,8 @@ function readStore(file) {
 }
 
 // returns an EventEmitter with .cancel() and .done (a Promise of the results in job order, null for jobs not run)
-// events: 'progress' {done, total, resumed, elapsed_s, eta_s}, 'result' {index, result}, 'error' (Error)
+// events: 'progress' {done, total, resumed, elapsed_s, eta_s}, 'result' {index, result}, 'notify' {index, ...} (messages of a
+// running job: partial results, progress), 'error' (Error)
 function runJobs(jobs, { workers = defaultWorkers(), store = null, order = null, nativeMath = false } = {}) {
   const ev = new EventEmitter();
   const keys = jobs.map(jobKey);
@@ -67,7 +68,9 @@ function runJobs(jobs, { workers = defaultWorkers(), store = null, order = null,
         if (cancelled || failed) return;
         if (next >= todo.length) return;
         const i = todo[next++], tStart = Date.now();
-        worker.once('message', (msg) => {
+        const onMsg = (msg) => {
+          if (msg.notify) { ev.emit('notify', { index: i, ...msg.notify }); return; }
+          worker.off('message', onMsg);
           if (cancelled || failed) return;
           if (!msg.ok) { failed = true; ev.emit('error', new Error(JSON.stringify(jobs[i].tag) + ': ' + msg.error)); close(); return; }
           busyTime += (Date.now() - tStart) / 1000;
@@ -76,7 +79,8 @@ function runJobs(jobs, { workers = defaultWorkers(), store = null, order = null,
           ev.emit('result', { index: i, result: msg.result });
           progress();
           if (finished === todo.length) close(); else feed();
-        });
+        };
+        worker.on('message', onMsg);
         worker.postMessage(jobs[i]);
       };
       feed();

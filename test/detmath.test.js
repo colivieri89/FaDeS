@@ -1,6 +1,6 @@
 // The deterministic math functions (src/sim/detmath.js) give the same bits in every runtime and on every platform:
 // a hash of 300 000 values is compared with the one computed when the port was written. The test runs in the GitHub
-// workflow on Windows, macOS and Linux, and under Electron (npm run test:electron).
+// workflow on Windows, macOS and Linux.
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');

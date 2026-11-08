@@ -21,13 +21,13 @@ const DEFAULTS = Object.freeze({
   theta0: { mode: 'critical', deltaDeg: 0.5 },   // theta0 = atan(t/Hr) + delta, at rest
   hinge: 'frictional',                           // 'frictional' (unilateral Coulomb contact at the toe) | 'pinned'
   rigidPhase: 'analytic',                        // 'analytic' (core) | 'engine' (cross-check)
-  // break-up timing: the MAIN EPISTEMIC ASSUMPTION of the model (see docs/MODEL.md)
+  // break-up timing: the main assumption of the model (see docs/MODEL.md)
   breakup: { mode: 'impact', fraction: 1.0, gap: 0 }, // 'impact' (default) | 'angleFraction' (theta_b = fraction * theta_impact)
                                                      // | 'none' (unbroken panel: the panel lands and rests as one body);
                                                      // gap [m]: uniform joint gap at break-up (0 = touching)
-  // wall section: 'single' (default) | 'twoLeaf' | 'crumble' (both EXPLORATORY, planck.js only; core/leaves.js):
+  // wall section: 'single' (default) | 'twoLeaf' | 'crumble' (both exploratory, planck.js only; core/leaves.js):
   // outer leaf and rubble-core thickness as fractions of t (twoLeaf), grain size [m] (core or crumbled wall);
-  // crumble release: 'lattice' (EXPLORATORY loose lattice) | 'deposited' (formal definition, core/column.js; both engines);
+  // crumble release: 'lattice' (exploratory loose lattice) | 'deposited' (formal definition, core/column.js; both engines);
   // gap [m]: uniform grain gap of the deposited column (0 = touching)
   leaves: { mode: 'single', outer: 0.5, core: 0.25, grain: 0.06, release: 'lattice', gap: 0 },
   // variability (explicit, seeded; all zero = deterministic nominal run)
@@ -38,7 +38,7 @@ const DEFAULTS = Object.freeze({
   airDrag: 0,
 });
 
-// approved fixed time steps per engine (Phase 3a benchmark, convergence demonstrated)
+// fixed time step of each engine (convergence: Appendix A of the paper)
 const ENGINE_DT = { planck: 1 / 480, chrono: 2e-3 };
 
 function deepMerge(a, b) {
@@ -67,14 +67,14 @@ function resolveParams(user = {}) {
   if (P.leaves.mode === 'crumble') {
     if (!(P.leaves.grain > 0 && P.leaves.grain <= P.t)) err.push('leaves.grain must be in (0, t]');
     if (!['lattice', 'deposited'].includes(P.leaves.release)) err.push("leaves.release must be 'lattice' or 'deposited'");
-    if (P.leaves.release === 'lattice' && P.engine !== 'planck') err.push('the lattice release of crumble is EXPLORATORY and implemented for planck.js only');
+    if (P.leaves.release === 'lattice' && P.engine !== 'planck') err.push('the lattice release of crumble is exploratory and implemented for planck.js only');
     if (!(P.leaves.gap >= 0 && P.leaves.gap <= 0.1 * P.leaves.grain)) err.push('leaves.gap must be in [0, grain/10] m');
   }
   if (P.leaves.mode === 'twoLeaf') {
     const L = P.leaves;
     if (!(L.outer > 0 && L.core > 0 && L.outer + L.core < 1)) err.push('leaves: outer, core > 0 and outer + core < 1');
     if (!(L.grain > 0 && L.grain <= L.core * P.t)) err.push('leaves.grain must be in (0, core * t]');
-    if (P.engine !== 'planck') err.push('leaves.mode twoLeaf is EXPLORATORY and implemented for planck.js only');
+    if (P.engine !== 'planck') err.push('leaves.mode twoLeaf is exploratory and implemented for planck.js only');
   }
   // safety bound only; the step actually used must be justified by a convergence study
   if (!(P.dt > 0 && P.dt <= 1 / 30 + 1e-12)) err.push('dt must be in (0, 1/30] s');

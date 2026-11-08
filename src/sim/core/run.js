@@ -31,7 +31,7 @@ async function runSimulation(userParams = {}, opts = {}) {
   const P0 = resolveParams(userParams);
   const { P, rng } = perturbedParams(P0);
   const geom = wallGeometry(P);
-  // two-leaf variant (EXPLORATORY): the outer leaf overturns, the inner leaf stays, the core is released
+  // two-leaf variant (exploratory): the outer leaf overturns, the inner leaf stays, the core is released
   const twoLeaf = P.leaves && P.leaves.mode === 'twoLeaf';
   const crumble = P.leaves && P.leaves.mode === 'crumble';
   if (crumble) return runCrumble(P, P0, geom, rng, opts, wall0);
@@ -96,7 +96,7 @@ async function debrisPhase(P, geom, blocks, KEref, opts, hookInfo) {
   return { t, steps, res, monitor, meas, info, history, KEref };
 }
 
-// Crumble variant: no rigid phase; the overturning portion is released at rest as grains, either on the EXPLORATORY
+// Crumble variant: no rigid phase; the overturning portion is released at rest as grains, either on the exploratory
 // loose lattice (leaves.release 'lattice') or as the deposited column of the formal definition ('deposited', core/column.js).
 // The stopping reference energy is the potential energy scale M g Hr / 2 (the kinetic energy at release is 0).
 async function runCrumble(P, P0, geom, rng, opts, wall0) {

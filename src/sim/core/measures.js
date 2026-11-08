@@ -10,7 +10,7 @@
 'use strict';
 const { boxVertices } = require('./geometry');
 
-// world vertices of a block (box, or polygon of the EXPLORATORY two-leaf core)
+// world vertices of a block (box, or polygon of the exploratory two-leaf core)
 function blockVertices(b, s) {
   if (b.shape !== 'polygon') return boxVertices(s.x, s.y, b.w, b.h, s.phi);
   const c = Math.cos(s.phi), sn = Math.sin(s.phi);

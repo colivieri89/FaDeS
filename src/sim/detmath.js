@@ -1,15 +1,13 @@
-// Deterministic transcendental functions for the simulator.
+// Deterministic sin, cos, tan, atan, atan2 and log for the simulator.
 //
-// Why: JavaScript leaves the last bit of Math.sin, Math.cos, Math.atan2, Math.log ... to the engine. Node.js computes
-// them with the fdlibm algorithms (V8's ieee754 port), while the V8 inside Electron (Chromium) uses other routines for
-// some of them, which differ in the last bit. The debris phase is chaotic, so a last-bit difference in the initial
-// state changes every run. The results of the paper were computed with Node.js.
-//
-// What: a pure-JavaScript port of the fdlibm routines (Sun Microsystems, 1993; the versions of V8's ieee754.cc) for
-// the six functions the simulator and planck.js use. JavaScript arithmetic is IEEE 754 double precision with no
-// fused multiply-add, so these functions give the same bits on every platform (Windows, macOS, Linux; x64, arm64).
-// install() replaces the six Math functions in the current thread (the worker threads and the command line call it
-// before loading the simulator); test/detmath.test.js checks them bit for bit against Node.js.
+// JavaScript does not fix the last bit of these functions; it depends on the runtime and on the processor. Node.js
+// computes them with V8's port of fdlibm, compiled with fused multiply-add on arm64 and without it on x86-64, and the
+// V8 inside Electron uses other routines for some of them. The debris phase is chaotic: one bit of difference in a
+// contact changes the whole run. The functions below translate the same fdlibm routines (Sun Microsystems, 1993; the
+// versions in V8's ieee754.cc) to JavaScript, whose arithmetic has no fused multiply-add, so they give the same bits
+// on Windows, macOS and Linux, x86-64 and arm64. install() replaces the six Math functions in the current thread; the
+// worker threads and the command line call it before loading the simulator. test/detmath.test.js compares a hash of
+// 300 000 values with the one stored when the translation was written.
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
